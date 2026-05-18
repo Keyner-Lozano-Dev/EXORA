@@ -41,7 +41,7 @@ $con = connection();
 
     <a href="#" class="active">
         <i class="fa-solid fa-calendar-days"></i>
-        Dashboard
+        ivan ZORRA
     </a>
 
     <a href="#">
