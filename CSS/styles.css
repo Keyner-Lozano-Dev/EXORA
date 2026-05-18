@@ -1,0 +1,203 @@
+/* ============================================================
+   EXORA — styles.css
+   Base original intacta + componentes compartidos
+   ============================================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap');
+
+:root {
+  --bg:    #f2ede3;
+  --card:  #faf6ee;
+  --black: #0e0e14;
+  --muted: #8c8878;
+  --line:  #ccc8bc;
+  --font:  'Poppins', sans-serif;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: var(--font);
+  background: var(--bg);
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding-right: calc(25% - 190px);
+}
+
+form {
+  width: 380px;
+  background: var(--card);
+  border: 2px solid var(--black);
+  border-radius: 22px;
+  box-shadow: 5px 5px 0 var(--black);
+  padding: 44px 40px 40px;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+}
+
+h1 {
+  font-size: 28px;
+  font-weight: 800;
+  color: var(--black);
+  letter-spacing: -0.5px;
+  margin-bottom: 32px;
+}
+
+input[type="text"],
+input[type="password"] {
+  width: 100%;
+  background: transparent;
+  border: none;
+  border-bottom: 1.5px solid var(--line);
+  padding: 10px 0;
+  font-size: 14px;
+  font-family: var(--font);
+  color: var(--black);
+  outline: none;
+  margin-bottom: 24px;
+  transition: border-color 0.25s;
+}
+
+input[type="text"]:focus,
+input[type="password"]:focus { border-color: var(--black); }
+
+input::placeholder { color: #c0bbb0; font-size: 13px; }
+
+input[type="submit"] {
+  width: 100%;
+  padding: 14px;
+  background: var(--black);
+  color: var(--card);
+  border: 2px solid var(--black);
+  border-radius: 50px;
+  font-family: var(--font);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: 8px;
+  margin-bottom: 22px;
+  letter-spacing: 0.2px;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+input[type="submit"]:hover {
+  transform: translateY(-2px);
+  box-shadow: 3px 3px 0 var(--black);
+}
+
+input[type="submit"]:active { transform: scale(0.98); }
+
+a { font-size: 12px; color: var(--muted); text-decoration: none; }
+
+a[href] { color: var(--black); font-weight: 700; margin-left: 3px; }
+
+a[href]:hover { text-decoration: underline; }
+
+@media (max-width: 700px) {
+  body { justify-content: center; padding: 10vh 24px; align-items: flex-start; }
+  form { width: 100%; }
+}
+
+/* ================================= */
+/* COMPARTIDO — Error msg            */
+/* ================================= */
+
+.error-msg {
+    font-size: 12px;
+    color: #c0392b;
+    background: #fdecea;
+    border: 1px solid #f5c6c2;
+    border-radius: 8px;
+    padding: 10px 14px;
+    margin-bottom: 18px;
+    text-align: center;
+}
+
+/* ================================= */
+/* COMPARTIDO — Password toggle      */
+/* ================================= */
+
+.password-wrapper {
+    position: relative;
+    margin-bottom: 24px;
+}
+
+.password-wrapper input {
+    margin-bottom: 0 !important;
+    padding-right: 36px;
+}
+
+.toggle-password {
+    position: absolute;
+    right: 0;
+    top: 50%;
+    transform: translateY(-60%);
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 4px;
+    color: var(--muted);
+    transition: color 0.2s;
+    display: flex;
+    align-items: center;
+}
+
+.toggle-password:hover { color: var(--black); }
+.toggle-password svg { width: 18px; height: 18px; }
+
+/* ================================= */
+/* COMPARTIDO — Divider & Google btn */
+/* ================================= */
+
+.divider {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 4px 0 18px;
+}
+
+.divider::before,
+.divider::after {
+    content: '';
+    flex: 1;
+    height: 1.5px;
+    background: var(--line);
+}
+
+.divider span {
+    font-size: 11px;
+    color: var(--muted);
+    font-family: var(--font);
+    white-space: nowrap;
+}
+
+.btn-google {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    width: 100%;
+    padding: 13px;
+    background: transparent;
+    color: var(--black);
+    border: 1.5px solid var(--line);
+    border-radius: 50px;
+    font-family: var(--font);
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    text-decoration: none;
+    transition: border-color 0.25s, box-shadow 0.2s, transform 0.2s;
+    margin-bottom: 22px;
+}
+
+.btn-google:hover {
+    border-color: var(--black);
+    box-shadow: 3px 3px 0 var(--black);
+    transform: translateY(-2px);
+}
+
+.btn-google svg { width: 18px; height: 18px; flex-shrink: 0; }
