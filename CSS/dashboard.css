@@ -61,6 +61,7 @@ body {
     padding: 1px;
     gap: 24px;
     margin: 0 auto;
+    align-items: flex-start;
 }
 
 /* ================================= */
@@ -74,7 +75,7 @@ body {
     border: 2px solid var(--black);
     border-radius: 22px;
     box-shadow: 5px 5px 0 var(--black);
-    padding: 32px 20px;
+    padding: 32px 10px;
     display: flex;
     flex-direction: column;
     justify-content: space-between;
