@@ -1,5 +1,6 @@
 /* ============================================================
    dashboard.css — EXORA neobrutalist (standalone, sin styles.css)
+   MODIFICADO: Sidebar pegado a la izquierda
    ============================================================ */
 
 @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap');
@@ -22,7 +23,7 @@ body {
     background: var(--bg);
     min-height: 100vh;
     display: flex;
-    justify-content: center;
+    justify-content: flex-start;
     align-items: flex-start;
     overflow: auto;
     position: relative;
@@ -48,19 +49,18 @@ body {
 .deco-7 { width: 200px; height: 14px; border-radius: 12px; background: #e04e1a; bottom: 0; left: 50%; transform: translateX(-50%); }
 
 /* ================================= */
-/* Wrapper principal                 */
+/* Wrapper principal - PEGADO IZQ   */
 /* ================================= */
 
 .dashboard-wrapper {
     display: flex;
     width: 100%;
-    max-width: 1200px;
     min-height: 100vh;
     position: relative;
     z-index: 1;
     padding: 1px;
     gap: 24px;
-    margin: 0 auto;
+    margin: 0;
     align-items: flex-start;
 }
 
@@ -167,6 +167,7 @@ body {
     align-self: flex-start;
     padding-top: 32px;
     margin-top: 0;
+    padding-right: 24px;
 }
 
 
