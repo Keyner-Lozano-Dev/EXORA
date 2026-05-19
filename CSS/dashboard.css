@@ -58,7 +58,7 @@ body {
     min-height: 100vh;
     position: relative;
     z-index: 1;
-    padding: 28px 28px 28px 1cm;
+    padding: 1px;
     gap: 24px;
     margin: 0 auto;
 }
@@ -74,7 +74,7 @@ body {
     border: 2px solid var(--black);
     border-radius: 22px;
     box-shadow: 5px 5px 0 var(--black);
-    padding: 1px 1px;
+    padding: 32px 20px;
     display: flex;
     flex-direction: column;
     justify-content: space-between;
