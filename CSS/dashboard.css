@@ -75,7 +75,7 @@ body {
     border: 2px solid var(--black);
     border-radius: 22px;
     box-shadow: 5px 5px 0 var(--black);
-    padding: 32px 10px;
+    padding: 32px 0px 32px 10px;
     display: flex;
     flex-direction: column;
     justify-content: space-between;
@@ -164,7 +164,8 @@ body {
     gap: 24px;
     min-width: 0;
     align-items: start;
-    padding-top: 0;
+    align-self: flex-start;
+    padding-top: 32px;
     margin-top: 0;
 }
 
