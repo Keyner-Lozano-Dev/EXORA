@@ -40,7 +40,7 @@ while($fila = mysqli_fetch_assoc($q_grafica)) {
         <h1>Herramientas</h1>
         
     </div>
-    <a href="secciones/perfil.php" class="profile" style="text-decoration:none;">pene</a>
+    <a href="secciones/perfil.php" class="profile" style="text-decoration:none;">EXORA</a>
 
 </div>
 
