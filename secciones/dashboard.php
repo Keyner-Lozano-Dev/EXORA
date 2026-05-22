@@ -3,30 +3,24 @@ session_start();
 include('../connection.php');
 $con = connection();
 $id_usuario = $_SESSION['user_id'];
-
 $hoy = date('Y-m-d');
 $q_clientes = mysqli_query($con, "SELECT COUNT(*) as total FROM clientes 
     WHERE id_usuario = $id_usuario 
     AND DATE(fecha_registro) = '$hoy'");
 $clientes_hoy = mysqli_fetch_assoc($q_clientes)['total'];
-
 $q_ventas = mysqli_query($con, "SELECT SUM(monto) as total FROM ventas 
     WHERE id_usuario = $id_usuario");
 $ventas = mysqli_fetch_assoc($q_ventas)['total'] ?? 0;
-
 $q_gastos = mysqli_query($con, "SELECT SUM(monto) as total FROM gastos 
     WHERE id_usuario = $id_usuario");
 $gastos = mysqli_fetch_assoc($q_gastos)['total'] ?? 0;
-
 $ingresos = $ventas - $gastos;
-
 $q_grafica = mysqli_query($con, "SELECT DATE(fecha) as dia, SUM(monto) as total 
     FROM ventas 
     WHERE id_usuario = $id_usuario 
     AND fecha >= DATE_SUB(NOW(), INTERVAL 30 DAY)
     GROUP BY DATE(fecha)
     ORDER BY dia ASC");
-
 $labels = [];
 $datos = [];
 while($fila = mysqli_fetch_assoc($q_grafica)) {
@@ -35,15 +29,53 @@ while($fila = mysqli_fetch_assoc($q_grafica)) {
 }
 ?>
 
+<!-- TOPBAR + TOOLBAR en una sola caja -->
 <div class="topbar">
-    <div class="welcome">
-        <h1>Herramientas</h1>
-        
+    <div class="topbar-top">
+        <div class="welcome">
+            <h1>Herramientas</h1>
+        </div>
+        <a href="secciones/perfil.php" class="profile" style="text-decoration:none;">logo</a>
     </div>
-    <a href="secciones/perfil.php" class="profile" style="text-decoration:none;">EXORA</a>
+    <div class="toolbar">
+        <span class="toolbar-label">Acciones</span>
+        <div class="tb-divider"></div>
 
+        <button class="tool-btn orange" onclick="location.href='secciones/clientes/nuevo.php'">
+            <i class="fa-solid fa-user-plus"></i>
+            Añadir cliente
+        </button>
+
+        <button class="tool-btn yellow" onclick="location.href='secciones/ventas/registrar.php'">
+            <i class="fa-solid fa-receipt"></i>
+            Registrar venta
+        </button>
+
+        <div class="date-wrap">
+            <i class="fa-solid fa-calendar"></i>
+            <input type="date" id="fecha-sel" title="Seleccionar día"
+                onchange="location.href='?fecha='+this.value" />
+        </div>
+
+        <button class="tool-btn purple" onclick="location.href='secciones/reportes.php'">
+            <i class="fa-solid fa-chart-bar"></i>
+            Ver reporte
+        </button>
+
+        <div class="spacer"></div>
+
+        <button class="tool-btn dark" onclick="location.href='secciones/exportar.php'">
+            <i class="fa-solid fa-download"></i>
+            Exportar
+        </button>
+    </div>
 </div>
 
+<script>
+    document.getElementById('fecha-sel').value = new Date().toISOString().split('T')[0];
+</script>
+
+<!-- CARDS -->
 <div class="cards">
     <div class="card">
         <i class="fa-solid fa-users"></i>
@@ -67,9 +99,10 @@ while($fila = mysqli_fetch_assoc($q_grafica)) {
     </div>
 </div>
 
+<!-- GRÁFICA -->
 <div class="table-container">
     <h2>Ventas ultimos 30 dias</h2>
-    <div id="graficaVentas" 
+    <div id="graficaVentas"
          style="width:100%; height:350px;"
          data-grafica="<?= htmlspecialchars(json_encode(array_map(function($l, $d) {
              return ['time' => $l, 'value' => (float)$d];
