@@ -86,6 +86,7 @@ body {
 }
 
 .logo {
+    text-align: center;
     font-size: 28px;
     font-weight: 800;
     color: var(--black);
