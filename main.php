@@ -84,7 +84,7 @@ $con = connection();
             <h1>Agenda</h1>
 
             <p>
-                Organización y planificación EXORA_hola
+                Organización y planificación EXORA
             </p>
 
         </div>
