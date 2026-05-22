@@ -44,7 +44,7 @@ $con = connection();
         Dashboard
     </a>
 
-    <a href="#">
+    <a href="agenda.php" class= "active">
         <i class="fa-solid fa-calendar-week"></i>
         Agenda
     </a>
