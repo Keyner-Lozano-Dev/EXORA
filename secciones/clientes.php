@@ -11,7 +11,8 @@ while ($f = mysqli_fetch_assoc($r)) $clientes[] = $f;
 
 <div class="topbar">
     <div class="topbar-top">
-        <div class="welcome"><h1>Herramientas</h1></div>
+        <div class="welcome">
+            <h1>Clientes</h1></div>
         <a href="secciones/perfil.php" class="profile" style="text-decoration:none;">logo</a>
     </div>
 </div>
