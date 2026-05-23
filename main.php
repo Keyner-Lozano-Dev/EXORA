@@ -214,7 +214,7 @@ $con = connection();
                         <i class="fa-solid fa-calendar-days"></i> Dashboard
                     </a>
                     <a href="#" onclick="cargarSeccion('agenda', this); return false;">
-                        <i class="fa-solid fa-calendar-week"></i> Agenda
+                        <i class="fa-solid fa-user-multi"></i> Clientes
                     </a>
                     <a href="#" onclick="cargarSeccion('eventos', this); return false;">
                         <i class="fa-solid fa-clock"></i> Eventos
