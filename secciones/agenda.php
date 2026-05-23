@@ -20,8 +20,9 @@ foreach ($citas as $cita) {
 ?>
 <div id="agenda-root" data-fecha="<?php echo $fecha; ?>">
 <div class="topbar">
+     <div class="profile">E</div>
     <div class="welcome"><h1>Agenda</h1><p>Organización y planificación EXORA</p></div>
-    <div class="profile">E</div>
+    
 </div>
 <div class="agenda-section">
     <div class="agenda-toolbar">
