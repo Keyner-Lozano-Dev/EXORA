@@ -34,7 +34,7 @@ while($fila = mysqli_fetch_assoc($q_grafica)) {
             Añadir cliente
         </button>
 
-        <button class="tool-btn yellow" onclick="abrirModalVenta()">
+        <button class="tool-btn yellow" onclick="abrirModalTransaccion()">
             <i class="fa-solid fa-receipt"></i>
             Registrar venta
         </button>
@@ -51,16 +51,69 @@ while($fila = mysqli_fetch_assoc($q_grafica)) {
 
         <div class="spacer"></div>
 
-        <button class="tool-btn dark" onclick="abrirModalGasto()">
-            <i class="fa-solid fa-download"></i>
-            Registrar gasto
-        </button>
+        <!-- EXPORTAR CON DROPDOWN -->
+        <div class="export-wrap" id="exportWrap">
+            <button class="tool-btn dark" onclick="toggleExportMenu()">
+                <i class="fa-solid fa-download"></i>
+                Exportar
+                <i class="fa-solid fa-chevron-down" style="font-size:10px;margin-left:2px;"></i>
+            </button>
+            <div class="export-menu" id="exportMenu" style="display:none;">
+                <a href="secciones/exportar.php?tipo=pdf" target="_blank" class="export-opt">
+                    <i class="fa-solid fa-file-pdf" style="color:#e04e1a;"></i> PDF
+                </a>
+                <a href="secciones/exportar.php?tipo=excel" target="_blank" class="export-opt">
+                    <i class="fa-solid fa-file-excel" style="color:#16a34a;"></i> Excel
+                </a>
+            </div>
+        </div>
     </div>
 </div>
 
 <script>
-    document.getElementById('fecha-sel').value = new Date().toISOString().split('T')[0];
+document.getElementById('fecha-sel').value = new Date().toISOString().split('T')[0];
+
+function toggleExportMenu() {
+    var menu = document.getElementById('exportMenu');
+    menu.style.display = menu.style.display === 'none' ? 'block' : 'none';
+}
+document.addEventListener('click', function(e) {
+    var wrap = document.getElementById('exportWrap');
+    if (wrap && !wrap.contains(e.target)) {
+        document.getElementById('exportMenu').style.display = 'none';
+    }
+});
 </script>
+
+<style>
+.export-wrap { position: relative; }
+.export-menu {
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    background: var(--card);
+    border: 2px solid var(--black);
+    border-radius: 12px;
+    box-shadow: 4px 4px 0 var(--black);
+    overflow: hidden;
+    z-index: 100;
+    min-width: 140px;
+}
+.export-opt {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 16px;
+    font-size: 14px;
+    font-weight: 600;
+    font-family: var(--font);
+    color: var(--black);
+    text-decoration: none;
+    transition: background 0.15s;
+}
+.export-opt:hover { background: var(--bg); }
+.export-opt:first-child { border-bottom: 1.5px solid var(--line); }
+</style>
 
 <div class="cards">
     <div class="card">

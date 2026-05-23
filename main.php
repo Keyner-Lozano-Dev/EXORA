@@ -51,8 +51,7 @@ $con = connection();
         var btn = document.querySelector('#modalCita .btn-guardar');
         btn.disabled = true;
         fetch('secciones/guardar_cita.php', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ titulo, descripcion: desc, fecha: fechaActual, hora_inicio: inicio, hora_fin: fin, color: colorSeleccionado })
         })
         .then(r => r.json())
@@ -66,14 +65,11 @@ $con = connection();
     function eliminarCita(id) {
         if (!confirm('¿Eliminar esta cita?')) return;
         fetch('secciones/eliminar_cita.php', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ id })
         })
         .then(r => r.json())
-        .then(data => {
-            if (data.success) { cargarSeccion('agenda', document.querySelector('.menu a.active')); }
-        });
+        .then(data => { if (data.success) cargarSeccion('agenda', document.querySelector('.menu a.active')); });
     }
     function cambiarFecha(dias) {
         var d = new Date(fechaActual);
@@ -100,8 +96,7 @@ $con = connection();
         var btn = document.querySelector('#modalCliente .btn-guardar');
         btn.disabled = true;
         fetch('secciones/guardar_cliente.php', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ nombre, email, telefono })
         })
         .then(r => r.json())
@@ -113,54 +108,38 @@ $con = connection();
         .finally(() => { btn.disabled = false; });
     }
 
-    /* ===== VENTA ===== */
-    function abrirModalVenta() { document.getElementById('modalVenta').style.display = 'flex'; }
-    function cerrarModalVenta() {
-        document.getElementById('modalVenta').style.display = 'none';
-        document.getElementById('vt-desc').value = '';
-        document.getElementById('vt-monto').value = '';
+    /* ===== TRANSACCION (VENTA + GASTO) ===== */
+    var tabActual = 'venta';
+    function abrirModalTransaccion(tab) {
+        tabActual = tab || 'venta';
+        document.getElementById('modalTransaccion').style.display = 'flex';
+        cambiarTab(tabActual);
     }
-    function guardarVenta() {
-        var desc = document.getElementById('vt-desc').value.trim();
-        var monto = document.getElementById('vt-monto').value.trim();
+    function cerrarModalTransaccion() {
+        document.getElementById('modalTransaccion').style.display = 'none';
+        document.getElementById('tr-desc').value = '';
+        document.getElementById('tr-monto').value = '';
+    }
+    function cambiarTab(tab) {
+        tabActual = tab;
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('tab-active'));
+        document.getElementById('tab-' + tab).classList.add('tab-active');
+        document.getElementById('modal-transaccion-titulo').textContent = tab === 'venta' ? 'Registrar Venta' : 'Registrar Gasto';
+    }
+    function guardarTransaccion() {
+        var desc = document.getElementById('tr-desc').value.trim();
+        var monto = document.getElementById('tr-monto').value.trim();
         if (!monto) { alert('El monto es obligatorio.'); return; }
-        var btn = document.querySelector('#modalVenta .btn-guardar');
+        var url = tabActual === 'venta' ? 'secciones/guardar_venta.php' : 'secciones/guardar_gasto.php';
+        var btn = document.querySelector('#modalTransaccion .btn-guardar');
         btn.disabled = true;
-        fetch('secciones/guardar_venta.php', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+        fetch(url, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ descripcion: desc, monto })
         })
         .then(r => r.json())
         .then(data => {
-            if (data.success) { cerrarModalVenta(); cargarSeccion('dashboard', document.querySelector('.menu a.active')); }
-            else { alert('Error: ' + data.message); }
-        })
-        .catch(() => alert('Error de conexión.'))
-        .finally(() => { btn.disabled = false; });
-    }
-
-    /* ===== GASTO ===== */
-    function abrirModalGasto() { document.getElementById('modalGasto').style.display = 'flex'; }
-    function cerrarModalGasto() {
-        document.getElementById('modalGasto').style.display = 'none';
-        document.getElementById('gs-desc').value = '';
-        document.getElementById('gs-monto').value = '';
-    }
-    function guardarGasto() {
-        var desc = document.getElementById('gs-desc').value.trim();
-        var monto = document.getElementById('gs-monto').value.trim();
-        if (!monto) { alert('El monto es obligatorio.'); return; }
-        var btn = document.querySelector('#modalGasto .btn-guardar');
-        btn.disabled = true;
-        fetch('secciones/guardar_gasto.php', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ descripcion: desc, monto })
-        })
-        .then(r => r.json())
-        .then(data => {
-            if (data.success) { cerrarModalGasto(); cargarSeccion('dashboard', document.querySelector('.menu a.active')); }
+            if (data.success) { cerrarModalTransaccion(); cargarSeccion('dashboard', document.querySelector('.menu a.active')); }
             else { alert('Error: ' + data.message); }
         })
         .catch(() => alert('Error de conexión.'))
@@ -174,6 +153,10 @@ $con = connection();
     .modal-header h2{font-size:18px;font-weight:800;color:var(--black);font-family:var(--font)}
     .modal-close{width:32px;height:32px;border-radius:8px;border:2px solid var(--black);background:var(--bg);cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;transition:all .15s}
     .modal-close:hover{background:var(--black);color:var(--card)}
+    .modal-tabs{display:flex;border-bottom:2px solid var(--line);}
+    .tab-btn{flex:1;padding:12px;border:none;background:transparent;font-family:var(--font);font-size:14px;font-weight:600;cursor:pointer;color:var(--muted);border-bottom:3px solid transparent;margin-bottom:-2px;transition:all .15s;}
+    .tab-btn.tab-active{color:var(--black);border-bottom-color:var(--black);}
+    .tab-btn:first-child{border-right:2px solid var(--line);}
     .modal-body{padding:24px;display:flex;flex-direction:column;gap:16px}
     .campo{display:flex;flex-direction:column;gap:6px;flex:1}
     .campo label{font-size:12px;font-weight:700;color:var(--black);font-family:var(--font);text-transform:uppercase;letter-spacing:.5px}
@@ -278,38 +261,28 @@ $con = connection();
         </div>
     </div>
 
-    <!-- MODAL VENTA -->
-    <div class="modal-overlay" id="modalVenta" style="display:none;">
+    <!-- MODAL TRANSACCION (VENTA + GASTO) -->
+    <div class="modal-overlay" id="modalTransaccion" style="display:none;">
         <div class="modal-box">
             <div class="modal-header">
-                <h2>Registrar Venta</h2>
-                <button class="modal-close" onclick="cerrarModalVenta()"><i class="fa-solid fa-xmark"></i></button>
+                <h2 id="modal-transaccion-titulo">Registrar Venta</h2>
+                <button class="modal-close" onclick="cerrarModalTransaccion()"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="modal-tabs">
+                <button class="tab-btn tab-active" id="tab-venta" onclick="cambiarTab('venta')">
+                    <i class="fa-solid fa-receipt"></i> Venta
+                </button>
+                <button class="tab-btn" id="tab-gasto" onclick="cambiarTab('gasto')">
+                    <i class="fa-solid fa-arrow-trend-down"></i> Gasto
+                </button>
             </div>
             <div class="modal-body">
-                <div class="campo"><label>Descripción</label><input type="text" id="vt-desc" placeholder="Ej: Venta producto A"></div>
-                <div class="campo"><label>Monto (COP)</label><input type="number" id="vt-monto" placeholder="0"></div>
+                <div class="campo"><label>Descripción</label><input type="text" id="tr-desc" placeholder="Ej: Venta producto A"></div>
+                <div class="campo"><label>Monto (COP)</label><input type="number" id="tr-monto" placeholder="0"></div>
             </div>
             <div class="modal-footer">
-                <button class="btn-cancelar" onclick="cerrarModalVenta()">Cancelar</button>
-                <button class="btn-guardar" onclick="guardarVenta()"><i class="fa-solid fa-check"></i> Guardar</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- MODAL GASTO -->
-    <div class="modal-overlay" id="modalGasto" style="display:none;">
-        <div class="modal-box">
-            <div class="modal-header">
-                <h2>Registrar Gasto</h2>
-                <button class="modal-close" onclick="cerrarModalGasto()"><i class="fa-solid fa-xmark"></i></button>
-            </div>
-            <div class="modal-body">
-                <div class="campo"><label>Descripción</label><input type="text" id="gs-desc" placeholder="Ej: Arriendo"></div>
-                <div class="campo"><label>Monto (COP)</label><input type="number" id="gs-monto" placeholder="0"></div>
-            </div>
-            <div class="modal-footer">
-                <button class="btn-cancelar" onclick="cerrarModalGasto()">Cancelar</button>
-                <button class="btn-guardar" onclick="guardarGasto()"><i class="fa-solid fa-check"></i> Guardar</button>
+                <button class="btn-cancelar" onclick="cerrarModalTransaccion()">Cancelar</button>
+                <button class="btn-guardar" onclick="guardarTransaccion()"><i class="fa-solid fa-check"></i> Guardar</button>
             </div>
         </div>
     </div>
