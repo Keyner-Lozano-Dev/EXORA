@@ -101,11 +101,38 @@ $con = connection();
         })
         .then(r => r.json())
         .then(data => {
-            if (data.success) { cerrarModalCliente(); cargarSeccion('dashboard', document.querySelector('.menu a.active')); }
+            if (data.success) { cerrarModalCliente(); cargarSeccion('clientes', document.querySelector('.menu a.active')); }
             else { alert('Error: ' + data.message); }
         })
         .catch(() => alert('Error de conexión.'))
         .finally(() => { btn.disabled = false; });
+    }
+    function filtrarClientes(q) {
+        q = q.toLowerCase().trim();
+        var filas = document.querySelectorAll('#tbody-clientes tr');
+        var visibles = 0;
+        filas.forEach(function(fila) {
+            var nombre = fila.getAttribute('data-nombre') || '';
+            var email  = fila.getAttribute('data-email') || '';
+            var tel    = fila.getAttribute('data-tel') || '';
+            var match  = nombre.includes(q) || email.includes(q) || tel.includes(q);
+            fila.style.display = match ? '' : 'none';
+            if (match) visibles++;
+        });
+        var sr = document.getElementById('sin-resultados');
+        if (sr) sr.style.display = visibles === 0 ? 'block' : 'none';
+    }
+    function eliminarCliente(id) {
+        if (!confirm('¿Eliminar este cliente?')) return;
+        fetch('secciones/eliminar_cliente.php', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id })
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) { cargarSeccion('clientes', document.querySelector('.menu a.active')); }
+            else { alert('Error al eliminar: ' + data.message); }
+        });
     }
 
     /* ===== TRANSACCION (VENTA + GASTO) ===== */
@@ -192,8 +219,10 @@ $con = connection();
     .btn-cancelar:hover{background:var(--black);color:var(--card)}
     .btn-guardar{padding:10px 20px;border:2px solid var(--black);border-radius:10px;background:var(--black);color:var(--card);font-family:var(--font);font-size:14px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:8px;box-shadow:3px 3px 0 #6c63ff;transition:all .15s}
     .btn-guardar:hover{transform:translateY(-2px);box-shadow:5px 5px 0 #6c63ff}
-    /* EXPORT MENU FIXED */
     #exportMenu{position:fixed;background:var(--card);border:2px solid var(--black);border-radius:12px;box-shadow:4px 4px 0 var(--black);overflow:hidden;z-index:1000;min-width:140px;display:none;}
+    .export-opt{display:flex;align-items:center;gap:10px;padding:12px 16px;font-size:14px;font-weight:600;font-family:var(--font);color:var(--black);text-decoration:none;transition:background .15s;}
+    .export-opt:hover{background:var(--bg);}
+    .export-opt:first-child{border-bottom:1.5px solid var(--line);}
     </style>
 </head>
 <body>
@@ -216,9 +245,10 @@ $con = connection();
                     <a href="#" onclick="cargarSeccion('agenda', this); return false;">
                         <i class="fa-solid fa-calendar-week"></i> Agenda
                     </a>
-                    <a href="#" onclick="cargarSeccion('eventos', this); return false;">
+                    <a href="#" onclick="cargarSeccion('clientes', this); return false;">
                         <i class="fa-solid fa-users"></i> Clientes
                     </a>
+                    
                     <a href="#" onclick="cargarSeccion('tareas', this); return false;">
                         <i class="fa-solid fa-list-check"></i> Tareas
                     </a>
@@ -232,7 +262,7 @@ $con = connection();
         <div class="main" id="main-content"></div>
     </div>
 
-    <!-- EXPORT MENU FIXED (fuera del topbar) -->
+    <!-- EXPORT MENU -->
     <div id="exportMenu">
         <a href="secciones/exportar.php?tipo=pdf" target="_blank" class="export-opt">
             <i class="fa-solid fa-file-pdf" style="color:#e04e1a;"></i> PDF
