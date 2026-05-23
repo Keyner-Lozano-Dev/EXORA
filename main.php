@@ -145,6 +145,19 @@ $con = connection();
         .catch(() => alert('Error de conexión.'))
         .finally(() => { btn.disabled = false; });
     }
+
+    /* ===== EXPORTAR ===== */
+    function toggleExportMenu() {
+        var menu = document.getElementById('exportMenu');
+        if (menu) menu.style.display = menu.style.display === 'none' ? 'block' : 'none';
+    }
+    document.addEventListener('click', function(e) {
+        var wrap = document.getElementById('exportWrap');
+        if (wrap && !wrap.contains(e.target)) {
+            var menu = document.getElementById('exportMenu');
+            if (menu) menu.style.display = 'none';
+        }
+    });
     </script>
     <style>
     .modal-overlay{position:fixed;inset:0;background:rgba(14,14,20,.5);z-index:999;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px)}
