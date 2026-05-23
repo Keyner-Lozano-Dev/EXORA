@@ -39,31 +39,40 @@ $con = connection();
                 <h1 class="logo">EXORA</h1>
                <div class="menu">
 
-    <a href="#" class="active">
-        <i class="fa-solid fa-calendar-days"></i>
-        Dashboard
-    </a>
+   <a href="#" class="active" onclick="cargarSeccion('secciones/dashboard.php', this)">
+    <i class="fa-solid fa-calendar-days"></i>
+    Dashboard
+</a>
+<a href="#" onclick="cargarSeccion('secciones/agenda.php', this)">
+    <i class="fa-solid fa-calendar-week"></i>
+    Agenda
+</a>
+<a href="#" onclick="cargarSeccion('secciones/eventos.php', this)">
+    <i class="fa-solid fa-clock"></i>
+    Eventos
+</a>
+<a href="#" onclick="cargarSeccion('secciones/tareas.php', this)">
+    <i class="fa-solid fa-list-check"></i>
+    Tareas
+</a>
+<a href="#" onclick="cargarSeccion('secciones/recordatorios.php', this)">
+    <i class="fa-solid fa-bell"></i>
+    Recordatorios
+</a>
+<script>
+function cargarSeccion(url, el) {
+    // Quitar active de todos
+    document.querySelectorAll('.menu a').forEach(a => a.classList.remove('active'));
+    el.classList.add('active');
 
-    <a href="" class= "active">
-        <i class="fa-solid fa-calendar-week"></i>
-        Agenda
-    </a>
-
-    <a href="#">
-        <i class="fa-solid fa-clock"></i>
-        Eventos
-    </a>
-
-    <a href="#">
-        <i class="fa-solid fa-list-check"></i>
-        Tareas
-    </a>
-
-    <a href="#">
-        <i class="fa-solid fa-bell"></i>
-        Recordatorios
-    </a>
-
+    // Cargar contenido
+    fetch(url)
+        .then(r => r.text())
+        .then(html => {
+            document.getElementById('main-content').innerHTML = html;
+        });
+}
+</script>
 </div>
             </div>
             <a href="logout.php" class="logout">

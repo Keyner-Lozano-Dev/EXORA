@@ -30,13 +30,7 @@ body {
 /* Formas decorativas                */
 /* ================================= */
 
-.deco {
-    position: fixed;
-    z-index: 0;
-    pointer-events: none;
-    opacity: 0.45;
-}
-
+.deco { position: fixed; z-index: 0; pointer-events: none; opacity: 0.45; }
 .deco-1 { width: 280px; height: 280px; border-radius: 50%; background: #f5e100; top: -120px; left: -100px; }
 .deco-2 { width: 200px; height: 200px; border-radius: 50%; background: #e04e1a; top: -80px; right: -60px; }
 .deco-3 { width: 18px; height: 260px; border-radius: 12px; background: #7b2cbf; top: 50%; left: 0; transform: translateY(-50%); }
@@ -220,7 +214,7 @@ body {
 }
 
 /* ================================= */
-/* Cards                             */
+/* Cards dashboard                   */
 /* ================================= */
 
 .cards {
@@ -332,39 +326,24 @@ table tr:last-child td { border-bottom: none; }
 @media (max-width: 900px) {
     .dashboard-wrapper { flex-direction: column; padding: 16px; }
     .sidebar { width: 100%; position: static; height: auto; margin-right: 0; margin-bottom: 16px; }
-    .topbar { flex-direction: column; align-items: flex-start; gap: 16px; }
     .cards { grid-template-columns: repeat(2, 1fr); }
     table { display: block; overflow-x: auto; }
+    .tareas-layout { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 500px) {
     .cards { grid-template-columns: 1fr; }
 }
 
-/* ========================================= */
-/* AGENDA + CALENDARIO                      */
-/* ========================================= */
+/* ================================= */
+/* Agenda + Calendario               */
+/* ================================= */
 
-.content-grid {
-    display: grid;
-    grid-template-columns: 1fr 1.2fr;
-    gap: 24px;
-}
+.content-grid { display: grid; grid-template-columns: 1fr 1.2fr; gap: 24px; }
 
-.calendar h2,
-.agenda h2 {
-    font-size: 18px;
-    font-weight: 800;
-    margin-bottom: 12px;
-}
+.calendar h2, .agenda h2 { font-size: 18px; font-weight: 800; margin-bottom: 12px; }
 
-.calendar-box {
-    margin-top: 10px;
-    padding: 18px;
-    background: var(--bg);
-    border: 2px solid var(--black);
-    border-radius: 14px;
-}
+.calendar-box { margin-top: 10px; padding: 18px; background: var(--bg); border: 2px solid var(--black); border-radius: 14px; }
 
 .task {
     display: flex;
@@ -378,25 +357,11 @@ table tr:last-child td { border-bottom: none; }
 }
 
 .task:hover { transform: translateX(3px); }
-
-.task .time {
-    font-weight: 800;
-    min-width: 90px;
-    font-size: 13px;
-    color: var(--black);
-}
-
+.task .time { font-weight: 800; min-width: 90px; font-size: 13px; color: var(--black); }
 .task h3 { font-size: 14px; font-weight: 700; }
+.task p { font-size: 12px; color: var(--muted); margin-top: 2px; }
 
-.task p {
-    font-size: 12px;
-    color: var(--muted);
-    margin-top: 2px;
-}
-
-@media (max-width: 900px) {
-    .content-grid { grid-template-columns: 1fr; }
-}
+@media (max-width: 900px) { .content-grid { grid-template-columns: 1fr; } }
 
 /* ================================= */
 /* TOOLBAR                           */
@@ -416,7 +381,7 @@ table tr:last-child td { border-bottom: none; }
 .toolbar-label {
     font-size: 12px;
     font-weight: 700;
-    color: var(--muted);
+    color: var(--black);        /* negro — antes era --muted */
     text-transform: uppercase;
     letter-spacing: 1.2px;
     white-space: nowrap;
@@ -481,11 +446,7 @@ table tr:last-child td { border-bottom: none; }
     cursor: pointer;
 }
 
-.date-wrap:hover {
-    transform: translateY(-2px);
-    box-shadow: 5px 5px 0 var(--black);
-}
-
+.date-wrap:hover { transform: translateY(-2px); box-shadow: 5px 5px 0 var(--black); }
 .date-wrap i { font-size: 15px; color: var(--black); }
 
 .date-wrap input[type="date"] {
@@ -505,4 +466,198 @@ table tr:last-child td { border-bottom: none; }
 @media (max-width: 900px) {
     .toolbar { padding-top: 12px; gap: 10px; }
     .tool-btn { padding: 10px 14px; font-size: 12px; }
+}
+
+/* ================================= */
+/* TAREAS                            */
+/* ================================= */
+
+.tareas-layout {
+    display: grid;
+    grid-template-columns: 1fr 320px;
+    gap: 24px;
+    width: 100%;
+}
+
+.tareas-col {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+
+.tareas-box {
+    background: var(--card);
+    border: 2px solid var(--black);
+    border-radius: 22px;
+    box-shadow: 5px 5px 0 var(--black);
+    padding: 24px;
+}
+
+.tareas-box-title {
+    font-size: 15px;
+    font-weight: 800;
+    color: var(--black);
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.tareas-add-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 14px;
+    border-radius: 10px;
+    border: 2px solid var(--black);
+    background: var(--black);
+    color: var(--card);
+    font-family: var(--font);
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: 2px 2px 0 #555;
+    transition: transform 0.13s;
+}
+
+.tareas-add-btn:hover { transform: translateY(-2px); }
+
+.tarea-item {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 14px;
+    border-radius: 14px;
+    border: 2px solid var(--line);
+    background: var(--bg);
+    margin-bottom: 10px;
+    transition: border-color 0.2s;
+    cursor: pointer;
+}
+
+.tarea-item:hover { border-color: var(--black); }
+.tarea-item:last-child { margin-bottom: 0; }
+
+.tarea-check {
+    width: 22px;
+    height: 22px;
+    border-radius: 6px;
+    border: 2px solid var(--black);
+    background: var(--card);
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 11px;
+}
+
+.tarea-check.done {
+    background: #7b2cbf;
+    border-color: #7b2cbf;
+    color: #fff;
+}
+
+.tarea-info { flex: 1; min-width: 0; }
+
+.tarea-info h3 {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--black);
+}
+
+.tarea-info h3.tachado {
+    text-decoration: line-through;
+    color: var(--muted);
+}
+
+.tarea-info p {
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 3px;
+}
+
+.tarea-info p i { font-size: 10px; }
+
+.tarea-badge {
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 10px;
+    font-weight: 700;
+    border: 1.5px solid var(--black);
+    flex-shrink: 0;
+}
+
+.tarea-badge.alta  { background: #fee2e2; color: #991b1b; }
+.tarea-badge.media { background: #fef9c3; color: #854d0e; }
+.tarea-badge.baja  { background: #dcfce7; color: #166534; }
+
+.tareas-stat-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.tareas-stat {
+    background: var(--bg);
+    border: 2px solid var(--line);
+    border-radius: 14px;
+    padding: 16px;
+    text-align: center;
+}
+
+.tareas-stat h2 {
+    font-size: 28px;
+    font-weight: 800;
+    color: var(--black);
+    letter-spacing: -1px;
+}
+
+.tareas-stat p {
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 2px;
+}
+
+.tareas-prog-bar {
+    height: 8px;
+    background: var(--line);
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+.tareas-prog-fill {
+    height: 100%;
+    background: #7b2cbf;
+    border-radius: 6px;
+}
+
+.tareas-cat-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 11px 0;
+    border-bottom: 1.5px solid var(--line);
+}
+
+.tareas-cat-item:last-child { border-bottom: none; }
+
+.tareas-cat-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.tareas-cat-item span {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--black);
+    flex: 1;
+}
+
+.tareas-cat-item small {
+    font-size: 11px;
+    color: var(--muted);
 }
