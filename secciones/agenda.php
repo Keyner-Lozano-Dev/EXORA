@@ -22,7 +22,7 @@ foreach ($citas as $cita) {
 <div class="topbar">
     <div class="topbar-top">
         <div class="welcome">
-            <h1>agenda</h1>
+            <h1>Agenda</h1>
         </div>
         <a href="secciones/perfil.php" class="profile" style="text-decoration:none;">logo</a>
     </div>
