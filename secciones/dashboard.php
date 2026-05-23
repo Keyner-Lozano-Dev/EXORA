@@ -44,11 +44,6 @@ while($fila = mysqli_fetch_assoc($q_grafica)) {
             <input type="date" id="fecha-sel" title="Seleccionar día" onchange="location.href='?fecha='+this.value" />
         </div>
 
-        <button class="tool-btn purple" onclick="location.href='secciones/reportes.php'">
-            <i class="fa-solid fa-chart-bar"></i>
-            Ver reporte
-        </button>
-
         <div class="spacer"></div>
 
         <div class="export-wrap" id="exportWrap">
