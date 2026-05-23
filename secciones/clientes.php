@@ -9,13 +9,12 @@ $r = mysqli_query($con, "SELECT * FROM clientes WHERE id_usuario = $id_usuario O
 while ($f = mysqli_fetch_assoc($r)) $clientes[] = $f;
 ?>
 
-<div class="topbar">
-    <div class="welcome">
-        <h1>Clientes</h1>
-        <p>Gestión de clientes EXORA</p>
+<div class="topbar-top">
+        <div class="welcome">
+            <h1>Clientes</h1>
+        </div>
+        <a href="secciones/perfil.php" class="profile" style="text-decoration:none;">logo</a>
     </div>
-    <div class="profile">E</div>
-</div>
 
 <div class="table-container">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;gap:16px;flex-wrap:wrap;">
