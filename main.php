@@ -149,7 +149,15 @@ $con = connection();
     /* ===== EXPORTAR ===== */
     function toggleExportMenu() {
         var menu = document.getElementById('exportMenu');
-        if (menu) menu.style.display = menu.style.display === 'none' ? 'block' : 'none';
+        var btn = document.getElementById('exportWrap').querySelector('button');
+        var rect = btn.getBoundingClientRect();
+        if (menu.style.display === 'none' || menu.style.display === '') {
+            menu.style.top = (rect.bottom + 8) + 'px';
+            menu.style.right = (window.innerWidth - rect.right) + 'px';
+            menu.style.display = 'block';
+        } else {
+            menu.style.display = 'none';
+        }
     }
     document.addEventListener('click', function(e) {
         var wrap = document.getElementById('exportWrap');
@@ -184,6 +192,8 @@ $con = connection();
     .btn-cancelar:hover{background:var(--black);color:var(--card)}
     .btn-guardar{padding:10px 20px;border:2px solid var(--black);border-radius:10px;background:var(--black);color:var(--card);font-family:var(--font);font-size:14px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:8px;box-shadow:3px 3px 0 #6c63ff;transition:all .15s}
     .btn-guardar:hover{transform:translateY(-2px);box-shadow:5px 5px 0 #6c63ff}
+    /* EXPORT MENU FIXED */
+    #exportMenu{position:fixed;background:var(--card);border:2px solid var(--black);border-radius:12px;box-shadow:4px 4px 0 var(--black);overflow:hidden;z-index:1000;min-width:140px;display:none;}
     </style>
 </head>
 <body>
@@ -220,6 +230,16 @@ $con = connection();
             <a href="logout.php" class="logout">Cerrar Sesión</a>
         </div>
         <div class="main" id="main-content"></div>
+    </div>
+
+    <!-- EXPORT MENU FIXED (fuera del topbar) -->
+    <div id="exportMenu">
+        <a href="secciones/exportar.php?tipo=pdf" target="_blank" class="export-opt">
+            <i class="fa-solid fa-file-pdf" style="color:#e04e1a;"></i> PDF
+        </a>
+        <a href="secciones/exportar.php?tipo=excel" target="_blank" class="export-opt">
+            <i class="fa-solid fa-file-excel" style="color:#16a34a;"></i> Excel
+        </a>
     </div>
 
     <!-- MODAL CITA -->

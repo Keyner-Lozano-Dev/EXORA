@@ -51,54 +51,22 @@ while($fila = mysqli_fetch_assoc($q_grafica)) {
 
         <div class="spacer"></div>
 
-        <!-- EXPORTAR CON DROPDOWN -->
         <div class="export-wrap" id="exportWrap">
             <button class="tool-btn dark" onclick="toggleExportMenu()">
                 <i class="fa-solid fa-download"></i>
                 Exportar
                 <i class="fa-solid fa-chevron-down" style="font-size:10px;margin-left:2px;"></i>
             </button>
-            <div class="export-menu" id="exportMenu" style="display:none;">
-                <a href="secciones/exportar.php?tipo=pdf" target="_blank" class="export-opt">
-                    <i class="fa-solid fa-file-pdf" style="color:#e04e1a;"></i> PDF
-                </a>
-                <a href="secciones/exportar.php?tipo=excel" target="_blank" class="export-opt">
-                    <i class="fa-solid fa-file-excel" style="color:#16a34a;"></i> Excel
-                </a>
-            </div>
         </div>
     </div>
 </div>
 
 <script>
 document.getElementById('fecha-sel').value = new Date().toISOString().split('T')[0];
-
-function toggleExportMenu() {
-    var menu = document.getElementById('exportMenu');
-    menu.style.display = menu.style.display === 'none' ? 'block' : 'none';
-}
-document.addEventListener('click', function(e) {
-    var wrap = document.getElementById('exportWrap');
-    if (wrap && !wrap.contains(e.target)) {
-        document.getElementById('exportMenu').style.display = 'none';
-    }
-});
 </script>
 
 <style>
 .export-wrap { position: relative; }
-.export-menu {
-    position: absolute;
-    top: calc(100% + 8px);
-    right: 0;
-    background: var(--card);
-    border: 2px solid var(--black);
-    border-radius: 12px;
-    box-shadow: 4px 4px 0 var(--black);
-    overflow: hidden;
-    z-index: 100;
-    min-width: 140px;
-}
 .export-opt {
     display: flex;
     align-items: center;
