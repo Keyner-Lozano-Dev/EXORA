@@ -12,9 +12,10 @@ while ($f = mysqli_fetch_assoc($r)) $clientes[] = $f;
 <div class="topbar">
     <div class="welcome">
         <h1>Clientes</h1>
-        <p>Gestión de clientes EXORA</p>
+        
     </div>
     <div class="profile">E</div>
+    <p>Gestión de clientes EXORA</p>
 </div>
 
 <div class="table-container">
