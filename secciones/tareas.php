@@ -9,6 +9,16 @@ if (!$id_usuario) {
     exit;
 }
 
+// Mostrar mensajes de sesión
+if (!empty($_SESSION['success'])) {
+    echo "<div style='color:green; padding:10px;'>" . htmlspecialchars($_SESSION['success']) . "</div>";
+    unset($_SESSION['success']);
+}
+if (!empty($_SESSION['error'])) {
+    echo "<div style='color:red; padding:10px;'>" . htmlspecialchars($_SESSION['error']) . "</div>";
+    unset($_SESSION['error']);
+}
+
 // Función para obtener tareas
 function obtenerTareas($con, $id_usuario, $completada = 0) {
     $stmt = $con->prepare("SELECT id, titulo, descripcion, prioridad, categoria, fecha_limite, hora, completada, fecha_creacion FROM tareas WHERE id_usuario = ? AND completada = ? ORDER BY fecha_limite ASC, hora ASC");
@@ -24,10 +34,10 @@ $tareas_pendientes = obtenerTareas($con, $id_usuario, 0);
 $tareas_completadas = obtenerTareas($con, $id_usuario, 1);
 
 function mostrarPrioridad($prioridad) {
-    switch ($prioridad) {
-        case 1: return ['alta', 'Alta'];
-        case 2: return ['media', 'Media'];
-        case 3: return ['baja', 'Baja'];
+    switch (strtolower($prioridad)) {
+        case 'alta': return ['alta', 'Alta'];
+        case 'media': return ['media', 'Media'];
+        case 'baja': return ['baja', 'Baja'];
         default: return ['baja', 'Baja'];
     }
 }
@@ -48,8 +58,38 @@ function formatearFechaHora($fecha_limite, $hora) {
 }
 ?>
 
-<!-- Aquí va todo tu HTML y estructura -->
+<!-- Formulario Nueva Tarea -->
+<div id="formNuevaTarea" style="display:none; border:1px solid #ccc; padding:20px; margin:20px 0;">
+    <h3>Nueva Tarea</h3>
+    <form id="formTarea" method="POST" action="crear_tarea.php">
+        <label>Título:<br>
+            <input type="text" name="titulo" required>
+        </label><br><br>
+        <label>Descripción:<br>
+            <textarea name="descripcion"></textarea>
+        </label><br><br>
+        <label>Prioridad:<br>
+            <select name="prioridad" required>
+                <option value="alta">Alta</option>
+                <option value="media" selected>Media</option>
+                <option value="baja">Baja</option>
+            </select>
+        </label><br><br>
+        <label>Categoría:<br>
+            <input type="text" name="categoria">
+        </label><br><br>
+        <label>Fecha límite:<br>
+            <input type="date" name="fecha_limite" required>
+        </label><br><br>
+        <label>Hora:<br>
+            <input type="time" name="hora">
+        </label><br><br>
+        <button type="submit">Crear tarea</button>
+        <button type="button" id="cancelarForm">Cancelar</button>
+    </form>
+</div>
 
+<!-- Topbar y botones -->
 <div class="topbar">
     <div class="topbar-top">
         <div class="welcome">
@@ -85,6 +125,7 @@ function formatearFechaHora($fecha_limite, $hora) {
     </div>
 </div>
 
+<!-- Layout tareas -->
 <div class="tareas-layout">
 
     <div class="tareas-col">
@@ -103,7 +144,7 @@ function formatearFechaHora($fecha_limite, $hora) {
                 $fecha_formateada = formatearFechaHora($tarea['fecha_limite'], $tarea['hora']);
             ?>
             <div class="tarea-item" data-id="<?= $tarea['id'] ?>">
-                <div class="tarea-check"></div>
+                <div class="tarea-check" title="Marcar como completada"></div>
                 <div class="tarea-info">
                     <h3><?= htmlspecialchars($tarea['titulo']) ?></h3>
                     <?php if (!empty($tarea['descripcion'])): ?>
@@ -127,7 +168,7 @@ function formatearFechaHora($fecha_limite, $hora) {
                 $fecha_formateada = formatearFechaHora($tarea['fecha_limite'], $tarea['hora']);
             ?>
             <div class="tarea-item">
-                <div class="tarea-check done" data-id="<?= $tarea['id'] ?>">
+                <div class="tarea-check done" title="Tarea completada" data-id="<?= $tarea['id'] ?>">
                     <i class="fa-solid fa-check"></i>
                 </div>
                 <div class="tarea-info">
@@ -158,7 +199,7 @@ function formatearFechaHora($fecha_limite, $hora) {
                     <p>Completadas</p>
                 </div>
                 <div class="tareas-stat">
-                    <h2><?= count(array_filter($tareas_pendientes, fn($t) => $t['prioridad'] == 1)) ?></h2>
+                    <h2><?= count(array_filter($tareas_pendientes, fn($t) => strtolower($t['prioridad']) == 'alta')) ?></h2>
                     <p>Alta prioridad</p>
                 </div>
                 <div class="tareas-stat">
@@ -178,7 +219,6 @@ function formatearFechaHora($fecha_limite, $hora) {
         <div class="tareas-box">
             <div class="tareas-box-title">Por categoría</div>
             <?php
-            // Contar tareas por categoría
             $categorias = [];
             foreach (array_merge($tareas_pendientes, $tareas_completadas) as $t) {
                 $cat = $t['categoria'] ?: 'Sin categoría';
@@ -240,6 +280,17 @@ function formatearFechaHora($fecha_limite, $hora) {
 </style>
 
 <script>
+// Mostrar y ocultar formulario nueva tarea
+document.getElementById('btnNuevaTarea').addEventListener('click', () => {
+    document.getElementById('formNuevaTarea').style.display = 'block';
+});
+document.getElementById('btnAgregarPendiente').addEventListener('click', () => {
+    document.getElementById('formNuevaTarea').style.display = 'block';
+});
+document.getElementById('cancelarForm').addEventListener('click', () => {
+    document.getElementById('formNuevaTarea').style.display = 'none';
+});
+
 // Campanita recordatorio con localStorage
 document.querySelectorAll('.btn-notification').forEach((btn) => {
     btn.addEventListener('click', () => {
