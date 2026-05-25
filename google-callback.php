@@ -38,6 +38,7 @@ $googleUser     = $google_service->userinfo->get();
 $googleId = $googleUser->id;
 $email    = $googleUser->email;
 $name     = $googleUser->name;
+$foto     = $googleUser->picture;
 
 // ── 4. ¿El email existe como cuenta LOCAL? ───────────────────────────────────
 $emailEscaped = mysqli_real_escape_string($con, $email);
@@ -47,7 +48,6 @@ $nameEscaped  = mysqli_real_escape_string($con, $name);
 $localCheck = mysqli_query($con, "SELECT id FROM users WHERE email = '$emailEscaped' AND auth_provider = 'local'");
 
 if (mysqli_num_rows($localCheck) > 0) {
-    // Email ya registrado con contraseña → avisar al usuario
     header("Location: index.php?error=email_exists");
     exit();
 }
@@ -56,11 +56,11 @@ if (mysqli_num_rows($localCheck) > 0) {
 $googleCheck = mysqli_query($con, "SELECT id, username FROM users WHERE google_id = '$googleIdEsc' AND auth_provider = 'google'");
 
 if (mysqli_num_rows($googleCheck) > 0) {
-    // Ya registrado → iniciar sesión directamente
     $user = mysqli_fetch_assoc($googleCheck);
     $_SESSION['user_id']  = $user['id'];
     $_SESSION['username'] = $user['username'];
     $_SESSION['provider'] = 'google';
+    $_SESSION['foto']     = $foto;
     header("Location: main.php");
     exit();
 }
@@ -75,6 +75,7 @@ if ($insertQuery) {
     $_SESSION['user_id']  = mysqli_insert_id($con);
     $_SESSION['username'] = $name;
     $_SESSION['provider'] = 'google';
+    $_SESSION['foto']     = $foto;
     header("Location: main.php");
     exit();
 } else {
