@@ -63,6 +63,9 @@ $id_usuario = $_SESSION['user_id'];
                     <h3>Llamar a proveedor Almacenes XYZ</h3>
                     <p><i class="fa-solid fa-calendar"></i> Hoy · 10:00 AM</p>
                 </div>
+                <button class="btn-notification" title="Recordatorio">
+                    <i class="fa-regular fa-bell"></i>
+                </button>
                 <span class="tarea-badge alta">Alta</span>
             </div>
 
@@ -72,6 +75,9 @@ $id_usuario = $_SESSION['user_id'];
                     <h3>Revisar inventario bodega 2</h3>
                     <p><i class="fa-solid fa-calendar"></i> Hoy · 02:00 PM</p>
                 </div>
+                <button class="btn-notification" title="Recordatorio">
+                    <i class="fa-regular fa-bell"></i>
+                </button>
                 <span class="tarea-badge media">Media</span>
             </div>
 
@@ -81,6 +87,9 @@ $id_usuario = $_SESSION['user_id'];
                     <h3>Actualizar precios temporada</h3>
                     <p><i class="fa-solid fa-calendar"></i> Mañana</p>
                 </div>
+                <button class="btn-notification" title="Recordatorio">
+                    <i class="fa-regular fa-bell"></i>
+                </button>
                 <span class="tarea-badge baja">Baja</span>
             </div>
 
@@ -90,6 +99,9 @@ $id_usuario = $_SESSION['user_id'];
                     <h3>Enviar cotización cliente Pérez</h3>
                     <p><i class="fa-solid fa-calendar"></i> 24 may</p>
                 </div>
+                <button class="btn-notification" title="Recordatorio">
+                    <i class="fa-regular fa-bell"></i>
+                </button>
                 <span class="tarea-badge alta">Alta</span>
             </div>
         </div>
@@ -179,3 +191,53 @@ $id_usuario = $_SESSION['user_id'];
 
     </div>
 </div>
+
+<style>
+.btn-notification {
+    background: none;
+    border: none;
+    cursor: pointer;
+    margin-left: 10px;
+    font-size: 18px;
+    color: #555;
+}
+
+.btn-notification:hover {
+    color: #7b2cbf;
+}
+</style>
+
+<script>
+document.querySelectorAll('.btn-notification').forEach((btn, index) => {
+    btn.addEventListener('click', () => {
+        const tareaItem = btn.closest('.tarea-item');
+        const tareaTitulo = tareaItem.querySelector('h3').innerText;
+        const tareaHora = tareaItem.querySelector('p').innerText;
+
+        // Guardar estado en localStorage
+        const key = 'recordatorio_tarea_' + index;
+        const activo = localStorage.getItem(key) === 'true';
+
+        if (!activo) {
+            localStorage.setItem(key, 'true');
+            btn.querySelector('i').classList.remove('fa-regular');
+            btn.querySelector('i').classList.add('fa-solid');
+            alert(`Recordatorio activado para: ${tareaTitulo} (${tareaHora})`);
+        } else {
+            localStorage.setItem(key, 'false');
+            btn.querySelector('i').classList.remove('fa-solid');
+            btn.querySelector('i').classList.add('fa-regular');
+            alert(`Recordatorio desactivado para: ${tareaTitulo}`);
+        }
+    });
+
+    // Al cargar la página, restaurar estado
+    const key = 'recordatorio_tarea_' + index;
+    if (localStorage.getItem(key) === 'true') {
+        btn.querySelector('i').classList.remove('fa-regular');
+        btn.querySelector('i').classList.add('fa-solid');
+    }
+});
+
+// Aquí podrías agregar lógica para notificaciones reales basadas en la hora de la tarea
+</script>
