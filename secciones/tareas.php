@@ -1,14 +1,69 @@
 <?php
+header('Content-Type: text/html; charset=utf-8');
 session_start();
 include('../connection.php');
 $con = connection();
 
 // Verificar que el usuario esté autenticado
 if (!isset($_SESSION['user_id']) || empty($_SESSION['user_id'])) {
-    header("Location: ../index.php"); // Redirigir al login si no está autenticado
+    header("Location: ../index.php");
     exit;
 }
 $id_usuario = $_SESSION['user_id'];
+
+// PROCESAMIENTO DE PETICIONES AJAX
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    header('Content-Type: application/json; charset=utf-8');
+    
+    $accion = $_POST['accion'] ?? '';
+    
+    // Marcar tarea como completada
+    if ($accion === 'completar') {
+        $id_tarea = intval($_POST['id'] ?? 0);
+        if ($id_tarea > 0) {
+            $stmt = $con->prepare("UPDATE tareas SET completada = 1 WHERE id = ? AND id_usuario = ?");
+            $stmt->bind_param("ii", $id_tarea, $id_usuario);
+            if ($stmt->execute()) {
+                echo json_encode(['success' => true, 'message' => 'Tarea marcada como completada']);
+            } else {
+                echo json_encode(['success' => false, 'error' => 'Error al actualizar']);
+            }
+            $stmt->close();
+        } else {
+            echo json_encode(['success' => false, 'error' => 'ID inválido']);
+        }
+        exit;
+    }
+    
+    // Crear nueva tarea
+    if ($accion === 'crear') {
+        $titulo = trim($_POST['titulo'] ?? '');
+        $descripcion = trim($_POST['descripcion'] ?? '');
+        $prioridad = $_POST['prioridad'] ?? 'media';
+        $categoria = trim($_POST['categoria'] ?? '');
+        $fecha_limite = $_POST['fecha_limite'] ?? null;
+        $hora = $_POST['hora'] ?? null;
+        
+        if (empty($titulo) || empty($fecha_limite)) {
+            echo json_encode(['success' => false, 'error' => 'Título y fecha son obligatorios']);
+            exit;
+        }
+        
+        $stmt = $con->prepare("INSERT INTO tareas (id_usuario, titulo, descripcion, prioridad, categoria, fecha_limite, hora, completada, fecha_creacion) VALUES (?, ?, ?, ?, ?, ?, ?, 0, NOW())");
+        $stmt->bind_param("issssss", $id_usuario, $titulo, $descripcion, $prioridad, $categoria, $fecha_limite, $hora);
+        
+        if ($stmt->execute()) {
+            echo json_encode(['success' => true, 'message' => 'Tarea creada correctamente']);
+        } else {
+            echo json_encode(['success' => false, 'error' => 'Error al crear tarea']);
+        }
+        $stmt->close();
+        exit;
+    }
+    
+    echo json_encode(['success' => false, 'error' => 'Acción no reconocida']);
+    exit;
+}
 
 // Obtener tareas del usuario
 $tareas = [];
@@ -274,13 +329,18 @@ function formatearFechaHora($fecha_limite, $hora) {
 
 <script>
 // Mostrar/ocultar formulario de nueva tarea
-document.getElementById('btnNuevaTarea').addEventListener('click', () => {
+document.getElementById('btnNuevaTarea').addEventListener('click', (e) => {
+    e.preventDefault();
     document.getElementById('formNuevaTarea').style.display = 'block';
 });
-document.getElementById('btnAgregarPendiente').addEventListener('click', () => {
+
+document.getElementById('btnAgregarPendiente').addEventListener('click', (e) => {
+    e.preventDefault();
     document.getElementById('formNuevaTarea').style.display = 'block';
 });
-document.getElementById('cancelarForm').addEventListener('click', () => {
+
+document.getElementById('cancelarForm').addEventListener('click', (e) => {
+    e.preventDefault();
     document.getElementById('formNuevaTarea').style.display = 'none';
     document.getElementById('formTarea').reset();
 });
@@ -290,20 +350,21 @@ document.getElementById('formTarea').addEventListener('submit', (e) => {
     e.preventDefault();
     
     const formData = new FormData(document.getElementById('formTarea'));
+    formData.append('accion', 'crear');
     
-    fetch('./crear_tarea.php', {
+    fetch('tareas.php', {
         method: 'POST',
         body: formData
     })
     .then(res => res.json())
     .then(data => {
         if (data.success) {
-            alert('✓ ' + data.message);
+            alert('✓ Tarea creada correctamente');
             document.getElementById('formTarea').reset();
             document.getElementById('formNuevaTarea').style.display = 'none';
-            location.reload();
+            setTimeout(() => location.reload(), 500);
         } else {
-            alert('✗ Error: ' + (data.error || 'No se pudo crear la tarea'));
+            alert('✗ Error: ' + (data.error || 'No se pudo crear'));
         }
     })
     .catch(err => {
@@ -312,54 +373,63 @@ document.getElementById('formTarea').addEventListener('submit', (e) => {
     });
 });
 
-// Campanita recordatorio con localStorage mejorada
+// Notificación con recordatorio
 function inicializarNotificaciones() {
     document.querySelectorAll('.btn-notification').forEach((btn) => {
         const tareaItem = btn.closest('.tarea-item');
         const tareaId = tareaItem.dataset.id;
-        const key = 'recordatorio_tarea_' + tareaId;
+        const key = 'recordatorio_' + tareaId;
         
-        // Restaurar estado al cargar
+        // Restaurar estado
         if (localStorage.getItem(key) === 'true') {
             btn.querySelector('i').classList.remove('fa-regular');
             btn.querySelector('i').classList.add('fa-solid');
+            btn.style.color = '#7b2cbf';
         }
         
         // Evento click
         btn.addEventListener('click', (e) => {
+            e.preventDefault();
             e.stopPropagation();
+            
             const activo = localStorage.getItem(key) === 'true';
-            const tareaTitulo = tareaItem.querySelector('h3').innerText;
+            const titulo = tareaItem.querySelector('h3').innerText;
             
             if (!activo) {
                 localStorage.setItem(key, 'true');
                 btn.querySelector('i').classList.remove('fa-regular');
                 btn.querySelector('i').classList.add('fa-solid');
                 btn.style.color = '#7b2cbf';
-                alert(`🔔 Recordatorio activado para: ${tareaTitulo}`);
+                alert('🔔 Recordatorio activado: ' + titulo);
             } else {
                 localStorage.setItem(key, 'false');
                 btn.querySelector('i').classList.remove('fa-solid');
                 btn.querySelector('i').classList.add('fa-regular');
                 btn.style.color = '#555';
-                alert(`🔕 Recordatorio desactivado`);
+                alert('🔕 Recordatorio desactivado');
             }
         });
     });
 }
 
-// Marcar tarea como completada con AJAX
-function inicializarCheckboxTareas() {
+// Marcar tarea como completada
+function inicializarCheckbox() {
     document.querySelectorAll('.tarea-check').forEach(check => {
+        if (check.classList.contains('done')) return;
+        
         check.addEventListener('click', () => {
             const tareaItem = check.closest('.tarea-item');
             const tareaId = tareaItem.dataset.id;
+            
             if (!tareaId) return;
-
-            fetch('./marcar_completada.php', {
+            
+            const formData = new FormData();
+            formData.append('accion', 'completar');
+            formData.append('id', tareaId);
+            
+            fetch('tareas.php', {
                 method: 'POST',
-                headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-                body: 'id=' + encodeURIComponent(tareaId)
+                body: formData
             })
             .then(res => res.json())
             .then(data => {
@@ -367,7 +437,7 @@ function inicializarCheckboxTareas() {
                     check.classList.add('done');
                     check.innerHTML = '<i class="fa-solid fa-check"></i>';
                     tareaItem.querySelector('h3').classList.add('tachado');
-                    setTimeout(() => location.reload(), 500);
+                    setTimeout(() => location.reload(), 400);
                 } else {
                     alert('✗ Error: ' + (data.error || 'No se pudo actualizar'));
                 }
@@ -383,6 +453,6 @@ function inicializarCheckboxTareas() {
 // Inicializar cuando el DOM esté listo
 document.addEventListener('DOMContentLoaded', () => {
     inicializarNotificaciones();
-    inicializarCheckboxTareas();
+    inicializarCheckbox();
 });
 </script>
