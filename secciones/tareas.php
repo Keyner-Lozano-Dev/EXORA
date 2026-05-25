@@ -3,9 +3,10 @@ session_start();
 include('../connection.php');
 $con = connection();
 
-// Para pruebas, define un usuario fijo si no usas login
-if (!isset($_SESSION['user_id'])) {
-    $_SESSION['user_id'] = 1; // Cambia este valor según un usuario válido en tu BD
+// Verificar que el usuario esté autenticado
+if (!isset($_SESSION['user_id']) || empty($_SESSION['user_id'])) {
+    header("Location: ../index.php"); // Redirigir al login si no está autenticado
+    exit;
 }
 $id_usuario = $_SESSION['user_id'];
 
@@ -143,8 +144,8 @@ function formatearFechaHora($fecha_limite, $hora) {
                     list($clase_prioridad, $texto_prioridad) = mostrarPrioridad($tarea['prioridad']);
                     $fecha_formateada = formatearFechaHora($tarea['fecha_limite'], $tarea['hora']);
                 ?>
-                <div class="tarea-item">
-                    <div class="tarea-check done" title="Tarea completada" data-id="<?= $tarea['id'] ?>">
+                <div class="tarea-item" data-id="<?= $tarea['id'] ?>">
+                    <div class="tarea-check done" title="Tarea completada">
                         <i class="fa-solid fa-check"></i>
                     </div>
                     <div class="tarea-info">
@@ -320,7 +321,7 @@ document.querySelectorAll('.tarea-check').forEach(check => {
         const tareaId = tareaItem.dataset.id;
         if (!tareaId) return;
 
-        fetch('marcar_completada.php', {
+        fetch('./marcar_completada.php', {
             method: 'POST',
             headers: {'Content-Type': 'application/x-www-form-urlencoded'},
             body: 'id=' + encodeURIComponent(tareaId)

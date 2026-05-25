@@ -3,8 +3,15 @@ session_start();
 include('../connection.php');
 $con = connection();
 
+// Verificar que el usuario esté autenticado
+if (!isset($_SESSION['user_id']) || empty($_SESSION['user_id'])) {
+    $_SESSION['error'] = "Debes estar autenticado para crear tareas.";
+    header("Location: ../index.php");
+    exit;
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $id_usuario = $_SESSION['user_id'] ?? 1; // Cambia si tienes sistema de login
+    $id_usuario = $_SESSION['user_id'];
     $titulo = trim($_POST['titulo'] ?? '');
     $descripcion = trim($_POST['descripcion'] ?? '');
     $prioridad = $_POST['prioridad'] ?? 'media';
