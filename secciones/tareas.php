@@ -2,37 +2,29 @@
 session_start();
 include('../connection.php');
 $con = connection();
-$id_usuario = $_SESSION['user_id'] ?? 0;
 
-if (!$id_usuario) {
-    header("Location: login.php");
-    exit;
+// Para pruebas, define un usuario fijo si no usas login
+if (!isset($_SESSION['user_id'])) {
+    $_SESSION['user_id'] = 1; // Cambia este valor según un usuario válido en tu BD
 }
+$id_usuario = $_SESSION['user_id'];
 
-// Mostrar mensajes de sesión
-if (!empty($_SESSION['success'])) {
-    echo "<div style='color:green; padding:10px;'>" . htmlspecialchars($_SESSION['success']) . "</div>";
-    unset($_SESSION['success']);
+// Obtener tareas del usuario
+$tareas = [];
+$stmt = $con->prepare("SELECT * FROM tareas WHERE id_usuario = ? ORDER BY fecha_limite ASC, hora ASC");
+$stmt->bind_param("i", $id_usuario);
+$stmt->execute();
+$result = $stmt->get_result();
+while ($row = $result->fetch_assoc()) {
+    $tareas[] = $row;
 }
-if (!empty($_SESSION['error'])) {
-    echo "<div style='color:red; padding:10px;'>" . htmlspecialchars($_SESSION['error']) . "</div>";
-    unset($_SESSION['error']);
-}
+$stmt->close();
 
-// Función para obtener tareas
-function obtenerTareas($con, $id_usuario, $completada = 0) {
-    $stmt = $con->prepare("SELECT id, titulo, descripcion, prioridad, categoria, fecha_limite, hora, completada, fecha_creacion FROM tareas WHERE id_usuario = ? AND completada = ? ORDER BY fecha_limite ASC, hora ASC");
-    $stmt->bind_param("ii", $id_usuario, $completada);
-    $stmt->execute();
-    $result = $stmt->get_result();
-    $tareas = $result->fetch_all(MYSQLI_ASSOC);
-    $stmt->close();
-    return $tareas;
-}
+// Separar tareas pendientes y completadas
+$tareas_pendientes = array_filter($tareas, fn($t) => $t['completada'] == 0);
+$tareas_completadas = array_filter($tareas, fn($t) => $t['completada'] == 1);
 
-$tareas_pendientes = obtenerTareas($con, $id_usuario, 0);
-$tareas_completadas = obtenerTareas($con, $id_usuario, 1);
-
+// Función para mostrar prioridad con clase y texto
 function mostrarPrioridad($prioridad) {
     switch (strtolower($prioridad)) {
         case 'alta': return ['alta', 'Alta'];
@@ -42,6 +34,7 @@ function mostrarPrioridad($prioridad) {
     }
 }
 
+// Formatear fecha y hora
 function formatearFechaHora($fecha_limite, $hora) {
     if (!$fecha_limite) return "Sin fecha";
     $fecha = new DateTime($fecha_limite . ' ' . ($hora ?: '00:00:00'));
@@ -58,7 +51,24 @@ function formatearFechaHora($fecha_limite, $hora) {
 }
 ?>
 
-<!-- Formulario Nueva Tarea -->
+<div class="topbar">
+    <div class="topbar-top">
+        <div class="welcome">
+            <h1>Tareas</h1>
+        </div>
+        <!-- Aquí puedes agregar perfil o avatar si tienes -->
+    </div>
+    <div class="toolbar">
+        <span class="toolbar-label">Acciones</span>
+        <div class="tb-divider"></div>
+        <button class="tool-btn purple" id="btnNuevaTarea">+ Nueva tarea</button>
+        <button class="tool-btn orange" id="btnFiltrar">Filtrar</button>
+        <div class="spacer"></div>
+        <button class="tool-btn dark" id="btnExportar">Exportar</button>
+    </div>
+</div>
+
+<!-- Formulario para nueva tarea (oculto inicialmente) -->
 <div id="formNuevaTarea" style="display:none; border:1px solid #ccc; padding:20px; margin:20px 0;">
     <h3>Nueva Tarea</h3>
     <form id="formTarea" method="POST" action="crear_tarea.php">
@@ -89,109 +99,74 @@ function formatearFechaHora($fecha_limite, $hora) {
     </form>
 </div>
 
-<!-- Topbar y botones -->
-<div class="topbar">
-    <div class="topbar-top">
-        <div class="welcome">
-            <h1>Tareas</h1>
-        </div>
-        <?php if (!empty($_SESSION['foto'])): ?>
-            <a href="secciones/perfil.php" class="profile" style="text-decoration:none; padding:0; overflow:hidden;">
-                <img src="<?= $_SESSION['foto'] ?>" 
-                     style="width:48px; height:48px; border-radius:50%; object-fit:cover; display:block; border:2px solid #0e0e14; box-shadow: 3px 3px 0 #0e0e14;">
-            </a>
-        <?php else: ?>
-            <a href="secciones/perfil.php" class="profile" style="text-decoration:none;">
-                <?= strtoupper(substr($_SESSION['username'], 0, 1)) ?>
-            </a>
-        <?php endif; ?>
-    </div>
-    <div class="toolbar">
-        <span class="toolbar-label">Acciones</span>
-        <div class="tb-divider"></div>
-        <button class="tool-btn purple" id="btnNuevaTarea">
-            <i class="fa-solid fa-plus"></i>
-            Nueva tarea
-        </button>
-        <button class="tool-btn orange" id="btnFiltrar">
-            <i class="fa-solid fa-filter"></i>
-            Filtrar
-        </button>
-        <div class="spacer"></div>
-        <button class="tool-btn dark" id="btnExportar">
-            <i class="fa-solid fa-download"></i>
-            Exportar
-        </button>
-    </div>
-</div>
-
-<!-- Layout tareas -->
 <div class="tareas-layout">
 
     <div class="tareas-col">
-
         <div class="tareas-box">
             <div class="tareas-box-title">
                 Pendientes
-                <button class="tareas-add-btn" id="btnAgregarPendiente">
-                    <i class="fa-solid fa-plus"></i>
-                    Agregar
-                </button>
+                <button class="tareas-add-btn" id="btnAgregarPendiente">+ Agregar</button>
             </div>
 
-            <?php foreach ($tareas_pendientes as $tarea): 
-                list($clase_prioridad, $texto_prioridad) = mostrarPrioridad($tarea['prioridad']);
-                $fecha_formateada = formatearFechaHora($tarea['fecha_limite'], $tarea['hora']);
-            ?>
-            <div class="tarea-item" data-id="<?= $tarea['id'] ?>">
-                <div class="tarea-check" title="Marcar como completada"></div>
-                <div class="tarea-info">
-                    <h3><?= htmlspecialchars($tarea['titulo']) ?></h3>
-                    <?php if (!empty($tarea['descripcion'])): ?>
-                        <p><?= nl2br(htmlspecialchars($tarea['descripcion'])) ?></p>
-                    <?php endif; ?>
-                    <p><i class="fa-solid fa-calendar"></i> <?= $fecha_formateada ?></p>
+            <?php if (empty($tareas_pendientes)): ?>
+                <p style="padding: 20px; color: #666;">No hay tareas pendientes.</p>
+            <?php else: ?>
+                <?php foreach ($tareas_pendientes as $tarea):
+                    list($clase_prioridad, $texto_prioridad) = mostrarPrioridad($tarea['prioridad']);
+                    $fecha_formateada = formatearFechaHora($tarea['fecha_limite'], $tarea['hora']);
+                ?>
+                <div class="tarea-item" data-id="<?= $tarea['id'] ?>">
+                    <div class="tarea-check" title="Marcar como completada"></div>
+                    <div class="tarea-info">
+                        <h3><?= htmlspecialchars($tarea['titulo']) ?></h3>
+                        <?php if (!empty($tarea['descripcion'])): ?>
+                            <p><?= nl2br(htmlspecialchars($tarea['descripcion'])) ?></p>
+                        <?php endif; ?>
+                        <p><i class="fa-solid fa-calendar"></i> <?= $fecha_formateada ?></p>
+                    </div>
+                    <button class="btn-notification" title="Recordatorio">
+                        <i class="fa-regular fa-bell"></i>
+                    </button>
+                    <span class="tarea-badge <?= $clase_prioridad ?>"><?= $texto_prioridad ?></span>
                 </div>
-                <button class="btn-notification" title="Recordatorio">
-                    <i class="fa-regular fa-bell"></i>
-                </button>
-                <span class="tarea-badge <?= $clase_prioridad ?>"><?= $texto_prioridad ?></span>
-            </div>
-            <?php endforeach; ?>
+                <?php endforeach; ?>
+            <?php endif; ?>
         </div>
 
         <div class="tareas-box">
             <div class="tareas-box-title">Completadas</div>
 
-            <?php foreach ($tareas_completadas as $tarea): 
-                list($clase_prioridad, $texto_prioridad) = mostrarPrioridad($tarea['prioridad']);
-                $fecha_formateada = formatearFechaHora($tarea['fecha_limite'], $tarea['hora']);
-            ?>
-            <div class="tarea-item">
-                <div class="tarea-check done" title="Tarea completada" data-id="<?= $tarea['id'] ?>">
-                    <i class="fa-solid fa-check"></i>
+            <?php if (empty($tareas_completadas)): ?>
+                <p style="padding: 20px; color: #666;">No hay tareas completadas.</p>
+            <?php else: ?>
+                <?php foreach ($tareas_completadas as $tarea):
+                    list($clase_prioridad, $texto_prioridad) = mostrarPrioridad($tarea['prioridad']);
+                    $fecha_formateada = formatearFechaHora($tarea['fecha_limite'], $tarea['hora']);
+                ?>
+                <div class="tarea-item">
+                    <div class="tarea-check done" title="Tarea completada" data-id="<?= $tarea['id'] ?>">
+                        <i class="fa-solid fa-check"></i>
+                    </div>
+                    <div class="tarea-info">
+                        <h3 class="tachado"><?= htmlspecialchars($tarea['titulo']) ?></h3>
+                        <?php if (!empty($tarea['descripcion'])): ?>
+                            <p><?= nl2br(htmlspecialchars($tarea['descripcion'])) ?></p>
+                        <?php endif; ?>
+                        <p>Completada · <?= $fecha_formateada ?></p>
+                    </div>
+                    <span class="tarea-badge <?= $clase_prioridad ?>"><?= $texto_prioridad ?></span>
                 </div>
-                <div class="tarea-info">
-                    <h3 class="tachado"><?= htmlspecialchars($tarea['titulo']) ?></h3>
-                    <?php if (!empty($tarea['descripcion'])): ?>
-                        <p><?= nl2br(htmlspecialchars($tarea['descripcion'])) ?></p>
-                    <?php endif; ?>
-                    <p>Completada · <?= $fecha_formateada ?></p>
-                </div>
-                <span class="tarea-badge <?= $clase_prioridad ?>"><?= $texto_prioridad ?></span>
-            </div>
-            <?php endforeach; ?>
+                <?php endforeach; ?>
+            <?php endif; ?>
         </div>
-
     </div>
 
     <div class="tareas-col">
-
         <div class="tareas-box">
             <div class="tareas-box-title">Resumen</div>
             <div class="tareas-stat-grid">
                 <div class="tareas-stat">
-                    <h2><?= count($tareas_pendientes) + count($tareas_completadas) ?></h2>
+                    <h2><?= count($tareas) ?></h2>
                     <p>Total tareas</p>
                 </div>
                 <div class="tareas-stat">
@@ -204,7 +179,7 @@ function formatearFechaHora($fecha_limite, $hora) {
                 </div>
                 <div class="tareas-stat">
                     <?php 
-                    $total = count($tareas_pendientes) + count($tareas_completadas);
+                    $total = count($tareas);
                     $progreso = $total > 0 ? round(count($tareas_completadas) * 100 / $total) : 0;
                     ?>
                     <h2><?= $progreso ?>%</h2>
@@ -220,7 +195,7 @@ function formatearFechaHora($fecha_limite, $hora) {
             <div class="tareas-box-title">Por categoría</div>
             <?php
             $categorias = [];
-            foreach (array_merge($tareas_pendientes, $tareas_completadas) as $t) {
+            foreach ($tareas as $t) {
                 $cat = $t['categoria'] ?: 'Sin categoría';
                 if (!isset($categorias[$cat])) $categorias[$cat] = 0;
                 $categorias[$cat]++;
@@ -236,11 +211,11 @@ function formatearFechaHora($fecha_limite, $hora) {
             </div>
             <?php endforeach; ?>
         </div>
-
     </div>
 </div>
 
 <style>
+/* Estilos básicos, adapta según tu CSS */
 .btn-notification {
     background: none;
     border: none;
@@ -249,11 +224,9 @@ function formatearFechaHora($fecha_limite, $hora) {
     font-size: 18px;
     color: #555;
 }
-
 .btn-notification:hover {
     color: #7b2cbf;
 }
-
 .tarea-check {
     width: 24px;
     height: 24px;
@@ -264,23 +237,41 @@ function formatearFechaHora($fecha_limite, $hora) {
     align-items: center;
     justify-content: center;
 }
-
 .tarea-check.done {
     background-color: #7b2cbf;
     color: white;
 }
-
 .tarea-check.done i {
     display: block;
 }
-
 .tarea-check i {
     display: none;
+}
+.tarea-badge.alta {
+    background-color: #e04e1a;
+    color: white;
+    padding: 2px 8px;
+    border-radius: 4px;
+}
+.tarea-badge.media {
+    background-color: #7b2cbf;
+    color: white;
+    padding: 2px 8px;
+    border-radius: 4px;
+}
+.tarea-badge.baja {
+    background-color: #f5e100;
+    color: black;
+    padding: 2px 8px;
+    border-radius: 4px;
+}
+.tachado {
+    text-decoration: line-through;
+    color: gray;
 }
 </style>
 
 <script>
-// Mostrar y ocultar formulario nueva tarea
 document.getElementById('btnNuevaTarea').addEventListener('click', () => {
     document.getElementById('formNuevaTarea').style.display = 'block';
 });
