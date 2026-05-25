@@ -12,8 +12,20 @@ while ($f = mysqli_fetch_assoc($r)) $clientes[] = $f;
 <div class="topbar">
     <div class="topbar-top">
         <div class="welcome">
-            <h1>Clientes</h1></div>
-        <a href="secciones/perfil.php" class="profile" style="text-decoration:none;">logo</a>
+            <h1>Clientes</h1>
+        </div>
+
+        <?php if (!empty($_SESSION['foto'])): ?>
+            <a href="secciones/perfil.php" class="profile" style="text-decoration:none; padding:0; overflow:hidden;">
+                <img src="<?= $_SESSION['foto'] ?>"
+                     style="width:48px; height:48px; border-radius:50%; object-fit:cover; display:block; border:2px solid #0e0e14; box-shadow: 3px 3px 0 #0e0e14;">
+            </a>
+        <?php else: ?>
+            <a href="secciones/perfil.php" class="profile" style="text-decoration:none;">
+                <?= strtoupper(substr($_SESSION['username'], 0, 1)) ?>
+            </a>
+        <?php endif; ?>
+
     </div>
 </div>
 
