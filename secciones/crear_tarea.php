@@ -1,12 +1,12 @@
 <?php
+header('Content-Type: application/json');
 session_start();
 include('../connection.php');
 $con = connection();
 
 // Verificar que el usuario esté autenticado
 if (!isset($_SESSION['user_id']) || empty($_SESSION['user_id'])) {
-    $_SESSION['error'] = "Debes estar autenticado para crear tareas.";
-    header("Location: ../index.php");
+    echo json_encode(['success' => false, 'error' => 'No autenticado']);
     exit;
 }
 
@@ -20,8 +20,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $hora = $_POST['hora'] ?? null;
 
     if ($titulo === '' || !$fecha_limite) {
-        $_SESSION['error'] = "Título y fecha límite son obligatorios.";
-        header("Location: tareas.php");
+        echo json_encode(['success' => false, 'error' => 'Título y fecha límite son obligatorios']);
         exit;
     }
 
@@ -29,16 +28,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $stmt->bind_param("issssss", $id_usuario, $titulo, $descripcion, $prioridad, $categoria, $fecha_limite, $hora);
 
     if ($stmt->execute()) {
-        $_SESSION['success'] = "Tarea creada correctamente.";
+        echo json_encode(['success' => true, 'message' => 'Tarea creada correctamente']);
     } else {
-        $_SESSION['error'] = "Error al crear la tarea.";
+        echo json_encode(['success' => false, 'error' => 'Error al crear la tarea']);
     }
     $stmt->close();
-
-    header("Location: tareas.php");
-    exit;
 } else {
-    header("Location: tareas.php");
-    exit;
+    echo json_encode(['success' => false, 'error' => 'Método no permitido']);
 }
 ?>

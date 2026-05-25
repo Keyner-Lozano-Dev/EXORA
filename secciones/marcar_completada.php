@@ -1,4 +1,5 @@
 <?php
+header('Content-Type: application/json');
 session_start();
 include('../connection.php');
 $con = connection();

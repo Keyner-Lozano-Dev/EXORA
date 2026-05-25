@@ -70,33 +70,33 @@ function formatearFechaHora($fecha_limite, $hora) {
 </div>
 
 <!-- Formulario para nueva tarea (oculto inicialmente) -->
-<div id="formNuevaTarea" style="display:none; border:1px solid #ccc; padding:20px; margin:20px 0;">
+<div id="formNuevaTarea" style="display:none; border:1px solid #ccc; padding:20px; margin:20px 0; background-color:#f9f9f9; border-radius:8px;">
     <h3>Nueva Tarea</h3>
-    <form id="formTarea" method="POST" action="crear_tarea.php">
+    <form id="formTarea">
         <label>Título:<br>
-            <input type="text" name="titulo" required>
-        </label><br><br>
+            <input type="text" name="titulo" required style="width:100%; padding:8px; margin:5px 0;">
+        </label><br>
         <label>Descripción:<br>
-            <textarea name="descripcion"></textarea>
-        </label><br><br>
+            <textarea name="descripcion" style="width:100%; padding:8px; margin:5px 0; height:80px;"></textarea>
+        </label><br>
         <label>Prioridad:<br>
-            <select name="prioridad" required>
+            <select name="prioridad" required style="width:100%; padding:8px; margin:5px 0;">
                 <option value="alta">Alta</option>
                 <option value="media" selected>Media</option>
                 <option value="baja">Baja</option>
             </select>
-        </label><br><br>
+        </label><br>
         <label>Categoría:<br>
-            <input type="text" name="categoria">
-        </label><br><br>
+            <input type="text" name="categoria" style="width:100%; padding:8px; margin:5px 0;">
+        </label><br>
         <label>Fecha límite:<br>
-            <input type="date" name="fecha_limite" required>
-        </label><br><br>
+            <input type="date" name="fecha_limite" required style="width:100%; padding:8px; margin:5px 0;">
+        </label><br>
         <label>Hora:<br>
-            <input type="time" name="hora">
+            <input type="time" name="hora" style="width:100%; padding:8px; margin:5px 0;">
         </label><br><br>
-        <button type="submit">Crear tarea</button>
-        <button type="button" id="cancelarForm">Cancelar</button>
+        <button type="submit" style="background:#7b2cbf; color:white; padding:10px 20px; border:none; border-radius:4px; cursor:pointer;">✓ Crear tarea</button>
+        <button type="button" id="cancelarForm" style="background:#ccc; color:#333; padding:10px 20px; border:none; border-radius:4px; cursor:pointer; margin-left:10px;">✕ Cancelar</button>
     </form>
 </div>
 
@@ -273,6 +273,7 @@ function formatearFechaHora($fecha_limite, $hora) {
 </style>
 
 <script>
+// Mostrar/ocultar formulario de nueva tarea
 document.getElementById('btnNuevaTarea').addEventListener('click', () => {
     document.getElementById('formNuevaTarea').style.display = 'block';
 });
@@ -281,63 +282,107 @@ document.getElementById('btnAgregarPendiente').addEventListener('click', () => {
 });
 document.getElementById('cancelarForm').addEventListener('click', () => {
     document.getElementById('formNuevaTarea').style.display = 'none';
+    document.getElementById('formTarea').reset();
 });
 
-// Campanita recordatorio con localStorage
-document.querySelectorAll('.btn-notification').forEach((btn) => {
-    btn.addEventListener('click', () => {
+// Enviar formulario como AJAX
+document.getElementById('formTarea').addEventListener('submit', (e) => {
+    e.preventDefault();
+    
+    const formData = new FormData(document.getElementById('formTarea'));
+    
+    fetch('./crear_tarea.php', {
+        method: 'POST',
+        body: formData
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+            alert('✓ ' + data.message);
+            document.getElementById('formTarea').reset();
+            document.getElementById('formNuevaTarea').style.display = 'none';
+            location.reload();
+        } else {
+            alert('✗ Error: ' + (data.error || 'No se pudo crear la tarea'));
+        }
+    })
+    .catch(err => {
+        console.error('Error:', err);
+        alert('Error en la conexión');
+    });
+});
+
+// Campanita recordatorio con localStorage mejorada
+function inicializarNotificaciones() {
+    document.querySelectorAll('.btn-notification').forEach((btn) => {
         const tareaItem = btn.closest('.tarea-item');
-        const tareaTitulo = tareaItem.querySelector('h3').innerText;
-        const tareaHora = tareaItem.querySelector('p').innerText;
-
-        const key = 'recordatorio_tarea_' + tareaItem.dataset.id;
-        const activo = localStorage.getItem(key) === 'true';
-
-        if (!activo) {
-            localStorage.setItem(key, 'true');
+        const tareaId = tareaItem.dataset.id;
+        const key = 'recordatorio_tarea_' + tareaId;
+        
+        // Restaurar estado al cargar
+        if (localStorage.getItem(key) === 'true') {
             btn.querySelector('i').classList.remove('fa-regular');
             btn.querySelector('i').classList.add('fa-solid');
-            alert(`Recordatorio activado para: ${tareaTitulo} (${tareaHora})`);
-        } else {
-            localStorage.setItem(key, 'false');
-            btn.querySelector('i').classList.remove('fa-solid');
-            btn.querySelector('i').classList.add('fa-regular');
-            alert(`Recordatorio desactivado para: ${tareaTitulo}`);
         }
+        
+        // Evento click
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const activo = localStorage.getItem(key) === 'true';
+            const tareaTitulo = tareaItem.querySelector('h3').innerText;
+            
+            if (!activo) {
+                localStorage.setItem(key, 'true');
+                btn.querySelector('i').classList.remove('fa-regular');
+                btn.querySelector('i').classList.add('fa-solid');
+                btn.style.color = '#7b2cbf';
+                alert(`🔔 Recordatorio activado para: ${tareaTitulo}`);
+            } else {
+                localStorage.setItem(key, 'false');
+                btn.querySelector('i').classList.remove('fa-solid');
+                btn.querySelector('i').classList.add('fa-regular');
+                btn.style.color = '#555';
+                alert(`🔕 Recordatorio desactivado`);
+            }
+        });
     });
-
-    const tareaItem = btn.closest('.tarea-item');
-    const key = 'recordatorio_tarea_' + tareaItem.dataset.id;
-    if (localStorage.getItem(key) === 'true') {
-        btn.querySelector('i').classList.remove('fa-regular');
-        btn.querySelector('i').classList.add('fa-solid');
-    }
-});
+}
 
 // Marcar tarea como completada con AJAX
-document.querySelectorAll('.tarea-check').forEach(check => {
-    check.addEventListener('click', () => {
-        const tareaItem = check.closest('.tarea-item');
-        const tareaId = tareaItem.dataset.id;
-        if (!tareaId) return;
+function inicializarCheckboxTareas() {
+    document.querySelectorAll('.tarea-check').forEach(check => {
+        check.addEventListener('click', () => {
+            const tareaItem = check.closest('.tarea-item');
+            const tareaId = tareaItem.dataset.id;
+            if (!tareaId) return;
 
-        fetch('./marcar_completada.php', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-            body: 'id=' + encodeURIComponent(tareaId)
-        })
-        .then(res => res.json())
-        .then(data => {
-            if (data.success) {
-                check.classList.add('done');
-                check.innerHTML = '<i class="fa-solid fa-check"></i>';
-                tareaItem.querySelector('h3').classList.add('tachado');
-                location.reload();
-            } else {
-                alert('Error al marcar tarea como completada');
-            }
-        })
-        .catch(() => alert('Error en la conexión'));
+            fetch('./marcar_completada.php', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+                body: 'id=' + encodeURIComponent(tareaId)
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    check.classList.add('done');
+                    check.innerHTML = '<i class="fa-solid fa-check"></i>';
+                    tareaItem.querySelector('h3').classList.add('tachado');
+                    setTimeout(() => location.reload(), 500);
+                } else {
+                    alert('✗ Error: ' + (data.error || 'No se pudo actualizar'));
+                }
+            })
+            .catch(err => {
+                console.error('Error:', err);
+                alert('Error en la conexión');
+            });
+        });
     });
+}
+
+// Inicializar cuando el DOM esté listo
+document.addEventListener('DOMContentLoaded', () => {
+    inicializarNotificaciones();
+    inicializarCheckboxTareas();
 });
 </script>
