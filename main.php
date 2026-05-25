@@ -1,9 +1,11 @@
 <?php
-
+session_start();
+if (!isset($_SESSION['user_id'])) {
+    header("Location: index.php");
+    exit();
+}
 include('connection.php');
-
 $con = connection();
-
 ?>
 <!DOCTYPE html>
 <html lang="es">
@@ -37,6 +39,7 @@ $con = connection();
             <div>
                 <h1 class="logo">EXORA</h1>
                 <div class="menu">
+<<<<<<< HEAD
 
                     <a href="#" class="active" onclick="cargarSeccion('dashboard', this); return false;">
                         <i class="fa-solid fa-calendar-days"></i>
@@ -63,15 +66,36 @@ $con = connection();
                         Recordatorios
                     </a>
 
+=======
+                    <a href="javascript:void(0)" class="active" onclick="cargarSeccion('secciones/dashboard.php', this)">
+                        <i class="fa-solid fa-calendar-days"></i>
+                        Dashboard
+                    </a>
+                    <a href="javascript:void(0)" onclick="cargarSeccion('secciones/agenda.php', this)">
+                        <i class="fa-solid fa-calendar-week"></i>
+                        Agenda
+                    </a>
+                    <a href="javascript:void(0)" onclick="cargarSeccion('secciones/eventos.php', this)">
+                        <i class="fa-solid fa-clock"></i>
+                        Eventos
+                    </a>
+                    <a href="javascript:void(0)" onclick="cargarSeccion('secciones/tareas.php', this)">
+                        <i class="fa-solid fa-list-check"></i>
+                        Tareas
+                    </a>
+                    <a href="javascript:void(0)" onclick="cargarSeccion('secciones/recordatorios.php', this)">
+                        <i class="fa-solid fa-bell"></i>
+                        Recordatorios
+                    </a>
+>>>>>>> e07c7c2f (se trata de arreglar los errores del main, ya que al momento de iniciar session, no aparece el apartado de dashboard)
                 </div>
             </div>
-            <a href="logout.php" class="logout">
-                Cerrar Sesión
-            </a>
+            <a href="logout.php" class="logout">Cerrar Sesión</a>
         </div>
 
         <!-- MAIN -->
         <div class="main" id="main-content">
+<<<<<<< HEAD
             <!-- El contenido se carga dinámicamente -->
         </div>
 
@@ -79,5 +103,27 @@ $con = connection();
 
     <script src="JavaScript/dashboard.js"></script>
 
+=======
+            <?php include('secciones/dashboard.php'); ?>
+        </div>
+
+    </div><!-- fin dashboard-wrapper -->
+
+    <script src="JavaScript/dashboard.js"></script>
+
+    <script>
+    function cargarSeccion(url, el) {
+        event.preventDefault();
+        document.querySelectorAll('.menu a').forEach(a => a.classList.remove('active'));
+        el.classList.add('active');
+        fetch(url)
+            .then(r => r.text())
+            .then(html => {
+                document.getElementById('main-content').innerHTML = html;
+            });
+    }
+    </script>
+
+>>>>>>> e07c7c2f (se trata de arreglar los errores del main, ya que al momento de iniciar session, no aparece el apartado de dashboard)
 </body>
 </html>
