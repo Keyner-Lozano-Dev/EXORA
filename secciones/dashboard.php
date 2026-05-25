@@ -4,23 +4,14 @@ include('../connection.php');
 $con = connection();
 $id_usuario = $_SESSION['user_id'];
 $hoy = date('Y-m-d');
-$q_clientes = mysqli_query($con, "SELECT COUNT(*) as total FROM clientes 
-    WHERE id_usuario = $id_usuario 
-    AND DATE(fecha_registro) = '$hoy'");
+$q_clientes = mysqli_query($con, "SELECT COUNT(*) as total FROM clientes WHERE id_usuario = $id_usuario AND DATE(fecha_registro) = '$hoy'");
 $clientes_hoy = mysqli_fetch_assoc($q_clientes)['total'];
-$q_ventas = mysqli_query($con, "SELECT SUM(monto) as total FROM ventas 
-    WHERE id_usuario = $id_usuario");
+$q_ventas = mysqli_query($con, "SELECT SUM(monto) as total FROM ventas WHERE id_usuario = $id_usuario");
 $ventas = mysqli_fetch_assoc($q_ventas)['total'] ?? 0;
-$q_gastos = mysqli_query($con, "SELECT SUM(monto) as total FROM gastos 
-    WHERE id_usuario = $id_usuario");
+$q_gastos = mysqli_query($con, "SELECT SUM(monto) as total FROM gastos WHERE id_usuario = $id_usuario");
 $gastos = mysqli_fetch_assoc($q_gastos)['total'] ?? 0;
 $ingresos = $ventas - $gastos;
-$q_grafica = mysqli_query($con, "SELECT DATE(fecha) as dia, SUM(monto) as total 
-    FROM ventas 
-    WHERE id_usuario = $id_usuario 
-    AND fecha >= DATE_SUB(NOW(), INTERVAL 30 DAY)
-    GROUP BY DATE(fecha)
-    ORDER BY dia ASC");
+$q_grafica = mysqli_query($con, "SELECT DATE(fecha) as dia, SUM(monto) as total FROM ventas WHERE id_usuario = $id_usuario AND fecha >= DATE_SUB(NOW(), INTERVAL 30 DAY) GROUP BY DATE(fecha) ORDER BY dia ASC");
 $labels = [];
 $datos = [];
 while($fila = mysqli_fetch_assoc($q_grafica)) {
@@ -29,53 +20,64 @@ while($fila = mysqli_fetch_assoc($q_grafica)) {
 }
 ?>
 
-<!-- TOPBAR + TOOLBAR en una sola caja -->
 <div class="topbar">
     <div class="topbar-top">
-        <div class="welcome">
-            <h1>Herramientas</h1>
-        </div>
+        <div class="welcome"><h1>Herramientas</h1></div>
         <a href="secciones/perfil.php" class="profile" style="text-decoration:none;">logo</a>
     </div>
     <div class="toolbar">
         <span class="toolbar-label">Acciones</span>
         <div class="tb-divider"></div>
 
-        <button class="tool-btn orange" onclick="location.href='secciones/clientes/nuevo.php'">
+        <button class="tool-btn orange" onclick="abrirModalCliente()">
             <i class="fa-solid fa-user-plus"></i>
             Añadir cliente
         </button>
 
-        <button class="tool-btn yellow" onclick="location.href='secciones/ventas/registrar.php'">
+        <button class="tool-btn yellow" onclick="abrirModalTransaccion()">
             <i class="fa-solid fa-receipt"></i>
             Registrar venta
         </button>
 
         <div class="date-wrap">
             <i class="fa-solid fa-calendar"></i>
-            <input type="date" id="fecha-sel" title="Seleccionar día"
-                onchange="location.href='?fecha='+this.value" />
+            <input type="date" id="fecha-sel" title="Seleccionar día" onchange="location.href='?fecha='+this.value" />
         </div>
-
-        <button class="tool-btn purple" onclick="location.href='secciones/reportes.php'">
-            <i class="fa-solid fa-chart-bar"></i>
-            Ver reporte
-        </button>
 
         <div class="spacer"></div>
 
-        <button class="tool-btn dark" onclick="location.href='secciones/exportar.php'">
-            <i class="fa-solid fa-download"></i>
-            Exportar
-        </button>
+        <div class="export-wrap" id="exportWrap">
+            <button class="tool-btn dark" onclick="toggleExportMenu()">
+                <i class="fa-solid fa-download"></i>
+                Exportar
+                <i class="fa-solid fa-chevron-down" style="font-size:10px;margin-left:2px;"></i>
+            </button>
+        </div>
     </div>
 </div>
 
 <script>
-    document.getElementById('fecha-sel').value = new Date().toISOString().split('T')[0];
+document.getElementById('fecha-sel').value = new Date().toISOString().split('T')[0];
 </script>
 
-<!-- CARDS -->
+<style>
+.export-wrap { position: relative; }
+.export-opt {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 16px;
+    font-size: 14px;
+    font-weight: 600;
+    font-family: var(--font);
+    color: var(--black);
+    text-decoration: none;
+    transition: background 0.15s;
+}
+.export-opt:hover { background: var(--bg); }
+.export-opt:first-child { border-bottom: 1.5px solid var(--line); }
+</style>
+
 <div class="cards">
     <div class="card">
         <i class="fa-solid fa-users"></i>
@@ -99,7 +101,6 @@ while($fila = mysqli_fetch_assoc($q_grafica)) {
     </div>
 </div>
 
-<!-- GRÁFICA -->
 <div class="table-container">
     <h2>Ventas ultimos 30 dias</h2>
     <div id="graficaVentas"
