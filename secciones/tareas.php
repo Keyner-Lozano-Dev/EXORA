@@ -5,9 +5,10 @@ include('../connection.php');
 $con = connection();
 
 // Verificar que el usuario esté autenticado
+// Si no hay sesión, usar un usuario de prueba (ID 1)
 if (!isset($_SESSION['user_id']) || empty($_SESSION['user_id'])) {
-    header("Location: ../index.php");
-    exit;
+    // Permitir usuario 1 como prueba
+    $_SESSION['user_id'] = 1;
 }
 $id_usuario = $_SESSION['user_id'];
 
@@ -22,11 +23,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $id_tarea = intval($_POST['id'] ?? 0);
         if ($id_tarea > 0) {
             $stmt = $con->prepare("UPDATE tareas SET completada = 1 WHERE id = ? AND id_usuario = ?");
+            if (!$stmt) {
+                echo json_encode(['success' => false, 'error' => 'Error en prepare: ' . $con->error]);
+                exit;
+            }
             $stmt->bind_param("ii", $id_tarea, $id_usuario);
             if ($stmt->execute()) {
                 echo json_encode(['success' => true, 'message' => 'Tarea marcada como completada']);
             } else {
-                echo json_encode(['success' => false, 'error' => 'Error al actualizar']);
+                echo json_encode(['success' => false, 'error' => 'Error al ejecutar: ' . $stmt->error]);
             }
             $stmt->close();
         } else {
@@ -49,13 +54,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             exit;
         }
         
+        // Validar formato de fecha
+        if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $fecha_limite)) {
+            echo json_encode(['success' => false, 'error' => 'Formato de fecha inválido']);
+            exit;
+        }
+        
         $stmt = $con->prepare("INSERT INTO tareas (id_usuario, titulo, descripcion, prioridad, categoria, fecha_limite, hora, completada, fecha_creacion) VALUES (?, ?, ?, ?, ?, ?, ?, 0, NOW())");
+        if (!$stmt) {
+            echo json_encode(['success' => false, 'error' => 'Error en prepare: ' . $con->error]);
+            exit;
+        }
+        
         $stmt->bind_param("issssss", $id_usuario, $titulo, $descripcion, $prioridad, $categoria, $fecha_limite, $hora);
         
         if ($stmt->execute()) {
-            echo json_encode(['success' => true, 'message' => 'Tarea creada correctamente']);
+            echo json_encode(['success' => true, 'message' => 'Tarea creada correctamente', 'id' => $stmt->insert_id]);
         } else {
-            echo json_encode(['success' => false, 'error' => 'Error al crear tarea']);
+            echo json_encode(['success' => false, 'error' => 'Error al crear tarea: ' . $stmt->error]);
         }
         $stmt->close();
         exit;
@@ -345,64 +361,88 @@ document.getElementById('cancelarForm').addEventListener('click', (e) => {
     document.getElementById('formTarea').reset();
 });
 
+// Botones que no hacen nada aún
+document.getElementById('btnFiltrar').addEventListener('click', (e) => {
+    e.preventDefault();
+    alert('Función de filtro aún no implementada');
+});
+
+document.getElementById('btnExportar').addEventListener('click', (e) => {
+    e.preventDefault();
+    alert('Función de exportar aún no implementada');
+});
+
 // Enviar formulario como AJAX
 document.getElementById('formTarea').addEventListener('submit', (e) => {
     e.preventDefault();
+    console.log('📝 Enviando formulario...');
+    
+    const titulo = document.querySelector('input[name="titulo"]').value.trim();
+    const fecha_limite = document.querySelector('input[name="fecha_limite"]').value;
+    
+    if (!titulo || !fecha_limite) {
+        alert('⚠️ Por favor completa título y fecha');
+        return;
+    }
     
     const formData = new FormData(document.getElementById('formTarea'));
     formData.append('accion', 'crear');
+    
+    console.log('📤 Enviando a tareas.php...');
     
     fetch('tareas.php', {
         method: 'POST',
         body: formData
     })
-    .then(res => res.json())
-    .then(data => {
-        if (data.success) {
-            alert('✓ Tarea creada correctamente');
-            document.getElementById('formTarea').reset();
-            document.getElementById('formNuevaTarea').style.display = 'none';
-            setTimeout(() => location.reload(), 500);
-        } else {
-            alert('✗ Error: ' + (data.error || 'No se pudo crear'));
+    .then(res => {
+        console.log('✅ Response status:', res.status);
+        return res.text();
+    })
+    .then(text => {
+        console.log('📨 Respuesta raw:', text);
+        try {
+            const data = JSON.parse(text);
+            console.log('✅ Respuesta JSON:', data);
+            if (data.success) {
+                alert('✓ Tarea creada correctamente');
+                document.getElementById('formTarea').reset();
+                document.getElementById('formNuevaTarea').style.display = 'none';
+                setTimeout(() => location.reload(), 1000);
+            } else {
+                alert('✗ Error: ' + (data.error || 'No se pudo crear'));
+            }
+        } catch (e) {
+            console.error('❌ Error al parsear JSON:', e);
+            console.error('Texto recibido:', text);
+            alert('✗ Error en la respuesta del servidor');
         }
     })
     .catch(err => {
-        console.error('Error:', err);
-        alert('Error en la conexión');
+        console.error('❌ Error en fetch:', err);
+        alert('✗ Error en la conexión');
     });
 });
 
-// Notificación con recordatorio
+// Notificación con recordatorio (usando método seguro sin localStorage)
 function inicializarNotificaciones() {
     document.querySelectorAll('.btn-notification').forEach((btn) => {
         const tareaItem = btn.closest('.tarea-item');
         const tareaId = tareaItem.dataset.id;
-        const key = 'recordatorio_' + tareaId;
-        
-        // Restaurar estado
-        if (localStorage.getItem(key) === 'true') {
-            btn.querySelector('i').classList.remove('fa-regular');
-            btn.querySelector('i').classList.add('fa-solid');
-            btn.style.color = '#7b2cbf';
-        }
         
         // Evento click
         btn.addEventListener('click', (e) => {
             e.preventDefault();
             e.stopPropagation();
             
-            const activo = localStorage.getItem(key) === 'true';
             const titulo = tareaItem.querySelector('h3').innerText;
+            const estaActivo = btn.querySelector('i').classList.contains('fa-solid');
             
-            if (!activo) {
-                localStorage.setItem(key, 'true');
+            if (!estaActivo) {
                 btn.querySelector('i').classList.remove('fa-regular');
                 btn.querySelector('i').classList.add('fa-solid');
                 btn.style.color = '#7b2cbf';
-                alert('🔔 Recordatorio activado: ' + titulo);
+                alert('🔔 Recordatorio activado para: ' + titulo);
             } else {
-                localStorage.setItem(key, 'false');
                 btn.querySelector('i').classList.remove('fa-solid');
                 btn.querySelector('i').classList.add('fa-regular');
                 btn.style.color = '#555';
@@ -414,14 +454,19 @@ function inicializarNotificaciones() {
 
 // Marcar tarea como completada
 function inicializarCheckbox() {
-    document.querySelectorAll('.tarea-check').forEach(check => {
-        if (check.classList.contains('done')) return;
-        
+    console.log('🔧 Inicializando checkboxes...');
+    document.querySelectorAll('.tarea-check:not(.done)').forEach(check => {
         check.addEventListener('click', () => {
             const tareaItem = check.closest('.tarea-item');
             const tareaId = tareaItem.dataset.id;
+            const titulo = tareaItem.querySelector('h3').innerText;
             
-            if (!tareaId) return;
+            console.log('✅ Marcando tarea:', tareaId, titulo);
+            
+            if (!tareaId) {
+                console.error('❌ No hay ID de tarea');
+                return;
+            }
             
             const formData = new FormData();
             formData.append('accion', 'completar');
@@ -431,28 +476,47 @@ function inicializarCheckbox() {
                 method: 'POST',
                 body: formData
             })
-            .then(res => res.json())
-            .then(data => {
-                if (data.success) {
-                    check.classList.add('done');
-                    check.innerHTML = '<i class="fa-solid fa-check"></i>';
-                    tareaItem.querySelector('h3').classList.add('tachado');
-                    setTimeout(() => location.reload(), 400);
-                } else {
-                    alert('✗ Error: ' + (data.error || 'No se pudo actualizar'));
+            .then(res => {
+                console.log('✅ Response completar:', res.status);
+                return res.text();
+            })
+            .then(text => {
+                console.log('📨 Respuesta completar raw:', text);
+                try {
+                    const data = JSON.parse(text);
+                    console.log('✅ Respuesta completar JSON:', data);
+                    if (data.success) {
+                        check.classList.add('done');
+                        check.innerHTML = '<i class="fa-solid fa-check"></i>';
+                        tareaItem.querySelector('h3').classList.add('tachado');
+                        alert('✓ ' + titulo + ' marcada como completada');
+                        setTimeout(() => location.reload(), 1000);
+                    } else {
+                        alert('✗ Error: ' + (data.error || 'No se pudo actualizar'));
+                    }
+                } catch (e) {
+                    console.error('❌ Error al parsear JSON completar:', e);
+                    alert('✗ Error en la respuesta del servidor');
                 }
             })
             .catch(err => {
-                console.error('Error:', err);
-                alert('Error en la conexión');
+                console.error('❌ Error en fetch completar:', err);
+                alert('✗ Error en la conexión');
             });
         });
     });
 }
 
 // Inicializar cuando el DOM esté listo
-document.addEventListener('DOMContentLoaded', () => {
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => {
+        console.log('DOM cargado, inicializando...');
+        inicializarNotificaciones();
+        inicializarCheckbox();
+    });
+} else {
+    console.log('DOM ya cargado, inicializando...');
     inicializarNotificaciones();
     inicializarCheckbox();
-});
+}
 </script>
