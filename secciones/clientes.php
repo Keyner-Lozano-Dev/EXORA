@@ -9,6 +9,7 @@ $r = mysqli_query($con, "SELECT * FROM clientes WHERE id_usuario = $id_usuario O
 while ($f = mysqli_fetch_assoc($r)) $clientes[] = $f;
 ?>
 
+<section>
 <div class="topbar">
     <div class="topbar-top">
         <div class="welcome">
@@ -28,6 +29,7 @@ while ($f = mysqli_fetch_assoc($r)) $clientes[] = $f;
 
     </div>
 </div>
+</section>
 
 <div class="table-container">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;gap:16px;flex-wrap:wrap;">
