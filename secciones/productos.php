@@ -21,8 +21,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['accion'])) {
 
         $sql  = "INSERT INTO productos (id_usuario, nombre, precio, fecha_caducidad, stock, categoria) VALUES (?, ?, ?, ?, ?, ?)";
         $stmt = mysqli_prepare($con, $sql);
-        // i=id_usuario s=nombre d=precio s=fecha_caducidad i=stock s=categoria
-        mysqli_stmt_bind_param($stmt, 'issdis', $id_usuario, $nombre, $precio, $fecha, $stock, $categoria);
+        
+        mysqli_stmt_bind_param($stmt, 'isssss', $id_usuario, $nombre, (string)$precio, $fecha, (string)$stock, $categoria);
 
         if (mysqli_stmt_execute($stmt)) {
             echo json_encode(['ok' => true]);
