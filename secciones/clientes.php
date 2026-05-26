@@ -9,17 +9,16 @@ $r = mysqli_query($con, "SELECT * FROM clientes WHERE id_usuario = $id_usuario O
 while ($f = mysqli_fetch_assoc($r)) $clientes[] = $f;
 ?>
 
-<section>
 <div class="topbar">
     <div class="topbar-top">
         <div class="welcome">
-            <h1>Clientes</h1>
+            <h1>Agenda</h1>
         </div>
 
         <?php if (!empty($_SESSION['foto'])): ?>
             <a href="secciones/perfil.php" class="profile" style="text-decoration:none; padding:0; overflow:hidden;">
                 <img src="<?= $_SESSION['foto'] ?>"
-                     style="width:48px; height:48px; border-radius:50%; object-fit:cover; display:block; border:2px solid #0e0e14; box-shadow: 3px 3px 0 #0e0e14;">
+                    style="width:48px; height:48px; border-radius:50%; object-fit:cover; display:block; border:2px solid #0e0e14; box-shadow: 3px 3px 0 #0e0e14;">
             </a>
         <?php else: ?>
             <a href="secciones/perfil.php" class="profile" style="text-decoration:none;">
@@ -29,7 +28,6 @@ while ($f = mysqli_fetch_assoc($r)) $clientes[] = $f;
 
     </div>
 </div>
-</section>
 
 <div class="table-container">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;gap:16px;flex-wrap:wrap;">
