@@ -2,133 +2,132 @@
 header('Content-Type: text/html; charset=utf-8');
 session_start();
 include('../connection.php');
-$con = connection();
 
-// Verificar que el usuario esté autenticado
-// Si no hay sesión, usar un usuario de prueba (ID 1)
+// Conexión
+$con = connection();
+if (!$con) {
+    die('Error: No se pudo conectar a la base de datos');
+}
+
+// Si no hay sesión, usar usuario 1 como prueba
 if (!isset($_SESSION['user_id']) || empty($_SESSION['user_id'])) {
-    // Permitir usuario 1 como prueba
     $_SESSION['user_id'] = 1;
 }
 $id_usuario = $_SESSION['user_id'];
 
-// PROCESAMIENTO DE PETICIONES AJAX
+// Ruta real del archivo para que el fetch de JS apunte correctamente
+$url_actual = htmlspecialchars($_SERVER['PHP_SELF']);
+
+// ─── PROCESAMIENTO AJAX ───────────────────────────────────────────────────────
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     header('Content-Type: application/json; charset=utf-8');
-    
     $accion = $_POST['accion'] ?? '';
-    
+
     // Marcar tarea como completada
     if ($accion === 'completar') {
         $id_tarea = intval($_POST['id'] ?? 0);
         if ($id_tarea > 0) {
-            $stmt = $con->prepare("UPDATE tareas SET completada = 1 WHERE id = ? AND id_usuario = ?");
+            $stmt = mysqli_prepare($con, "UPDATE tareas SET completada = 1 WHERE id = ? AND id_usuario = ?");
             if (!$stmt) {
-                echo json_encode(['success' => false, 'error' => 'Error en prepare: ' . $con->error]);
+                echo json_encode(['success' => false, 'error' => 'Error prepare: ' . mysqli_error($con)]);
                 exit;
             }
-            $stmt->bind_param("ii", $id_tarea, $id_usuario);
-            if ($stmt->execute()) {
+            mysqli_stmt_bind_param($stmt, "ii", $id_tarea, $id_usuario);
+            if (mysqli_stmt_execute($stmt)) {
                 echo json_encode(['success' => true, 'message' => 'Tarea marcada como completada']);
             } else {
-                echo json_encode(['success' => false, 'error' => 'Error al ejecutar: ' . $stmt->error]);
+                echo json_encode(['success' => false, 'error' => 'Error execute: ' . mysqli_stmt_error($stmt)]);
             }
-            $stmt->close();
+            mysqli_stmt_close($stmt);
         } else {
             echo json_encode(['success' => false, 'error' => 'ID inválido']);
         }
         exit;
     }
-    
+
     // Crear nueva tarea
     if ($accion === 'crear') {
-        $titulo = trim($_POST['titulo'] ?? '');
-        $descripcion = trim($_POST['descripcion'] ?? '');
-        $prioridad = $_POST['prioridad'] ?? 'media';
-        $categoria = trim($_POST['categoria'] ?? '');
-        $fecha_limite = $_POST['fecha_limite'] ?? null;
-        $hora = $_POST['hora'] ?? null;
-        
+        $titulo       = trim($_POST['titulo'] ?? '');
+        $descripcion  = trim($_POST['descripcion'] ?? '');
+        $prioridad    = $_POST['prioridad'] ?? 'media';
+        $categoria    = trim($_POST['categoria'] ?? '');
+        $fecha_limite = $_POST['fecha_limite'] ?? '';
+        $hora         = $_POST['hora'] ?: null;
+
         if (empty($titulo) || empty($fecha_limite)) {
             echo json_encode(['success' => false, 'error' => 'Título y fecha son obligatorios']);
             exit;
         }
-        
-        // Validar formato de fecha
+
         if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $fecha_limite)) {
             echo json_encode(['success' => false, 'error' => 'Formato de fecha inválido']);
             exit;
         }
-        
-        $stmt = $con->prepare("INSERT INTO tareas (id_usuario, titulo, descripcion, prioridad, categoria, fecha_limite, hora, completada, fecha_creacion) VALUES (?, ?, ?, ?, ?, ?, ?, 0, NOW())");
+
+        $stmt = mysqli_prepare($con, "INSERT INTO tareas (id_usuario, titulo, descripcion, prioridad, categoria, fecha_limite, hora, completada, fecha_creacion) VALUES (?, ?, ?, ?, ?, ?, ?, 0, NOW())");
         if (!$stmt) {
-            echo json_encode(['success' => false, 'error' => 'Error en prepare: ' . $con->error]);
+            echo json_encode(['success' => false, 'error' => 'Error prepare INSERT: ' . mysqli_error($con)]);
             exit;
         }
-        
-        $stmt->bind_param("issssss", $id_usuario, $titulo, $descripcion, $prioridad, $categoria, $fecha_limite, $hora);
-        
-        if ($stmt->execute()) {
-            echo json_encode(['success' => true, 'message' => 'Tarea creada correctamente', 'id' => $stmt->insert_id]);
+
+        mysqli_stmt_bind_param($stmt, "issssss", $id_usuario, $titulo, $descripcion, $prioridad, $categoria, $fecha_limite, $hora);
+
+        if (mysqli_stmt_execute($stmt)) {
+            $nuevo_id = mysqli_stmt_insert_id($stmt);
+            echo json_encode(['success' => true, 'message' => 'Tarea creada correctamente', 'id' => $nuevo_id]);
         } else {
-            echo json_encode(['success' => false, 'error' => 'Error al crear tarea: ' . $stmt->error]);
+            echo json_encode(['success' => false, 'error' => 'Error execute INSERT: ' . mysqli_stmt_error($stmt)]);
         }
-        $stmt->close();
+        mysqli_stmt_close($stmt);
         exit;
     }
-    
+
     echo json_encode(['success' => false, 'error' => 'Acción no reconocida']);
     exit;
 }
 
-// Obtener tareas del usuario
+// ─── OBTENER TAREAS DEL USUARIO ───────────────────────────────────────────────
 $tareas = [];
-$stmt = $con->prepare("SELECT * FROM tareas WHERE id_usuario = ? ORDER BY fecha_limite ASC, hora ASC");
-$stmt->bind_param("i", $id_usuario);
-$stmt->execute();
-$result = $stmt->get_result();
-while ($row = $result->fetch_assoc()) {
+$stmt = mysqli_prepare($con, "SELECT * FROM tareas WHERE id_usuario = ? ORDER BY fecha_limite ASC, hora ASC");
+mysqli_stmt_bind_param($stmt, "i", $id_usuario);
+mysqli_stmt_execute($stmt);
+$result = mysqli_stmt_get_result($stmt);
+while ($row = mysqli_fetch_assoc($result)) {
     $tareas[] = $row;
 }
-$stmt->close();
+mysqli_stmt_close($stmt);
 
-// Separar tareas pendientes y completadas
-$tareas_pendientes = array_filter($tareas, fn($t) => $t['completada'] == 0);
+// Separar pendientes y completadas
+$tareas_pendientes  = array_filter($tareas, fn($t) => $t['completada'] == 0);
 $tareas_completadas = array_filter($tareas, fn($t) => $t['completada'] == 1);
 
-// Función para mostrar prioridad con clase y texto
+// ─── FUNCIONES AUXILIARES ─────────────────────────────────────────────────────
 function mostrarPrioridad($prioridad) {
     switch (strtolower($prioridad)) {
-        case 'alta': return ['alta', 'Alta'];
+        case 'alta':  return ['alta',  'Alta'];
         case 'media': return ['media', 'Media'];
-        case 'baja': return ['baja', 'Baja'];
-        default: return ['baja', 'Baja'];
+        case 'baja':  return ['baja',  'Baja'];
+        default:      return ['baja',  'Baja'];
     }
 }
 
-// Formatear fecha y hora
 function formatearFechaHora($fecha_limite, $hora) {
     if (!$fecha_limite) return "Sin fecha";
-    $fecha = new DateTime($fecha_limite . ' ' . ($hora ?: '00:00:00'));
-    $hoy = new DateTime('today');
+    $fecha  = new DateTime($fecha_limite . ' ' . ($hora ?: '00:00:00'));
+    $hoy    = new DateTime('today');
     $manana = new DateTime('tomorrow');
-
-    if ($fecha->format('Y-m-d') == $hoy->format('Y-m-d')) {
-        return "Hoy · " . $fecha->format('h:i A');
-    } elseif ($fecha->format('Y-m-d') == $manana->format('Y-m-d')) {
-        return "Mañana";
-    } else {
-        return $fecha->format('d M');
-    }
+    if ($fecha->format('Y-m-d') === $hoy->format('Y-m-d'))   return "Hoy · " . $fecha->format('h:i A');
+    if ($fecha->format('Y-m-d') === $manana->format('Y-m-d')) return "Mañana";
+    return $fecha->format('d M');
 }
 ?>
 
+<!-- ─── TOPBAR ──────────────────────────────────────────────────────────────── -->
 <div class="topbar">
     <div class="topbar-top">
         <div class="welcome">
             <h1>Tareas</h1>
         </div>
-        <!-- Aquí puedes agregar perfil o avatar si tienes -->
     </div>
     <div class="toolbar">
         <span class="toolbar-label">Acciones</span>
@@ -140,40 +139,50 @@ function formatearFechaHora($fecha_limite, $hora) {
     </div>
 </div>
 
-<!-- Formulario para nueva tarea (oculto inicialmente) -->
+<!-- ─── FORMULARIO NUEVA TAREA ────────────────────────────────────────────────── -->
 <div id="formNuevaTarea" style="display:none; border:1px solid #ccc; padding:20px; margin:20px 0; background-color:#f9f9f9; border-radius:8px;">
     <h3>Nueva Tarea</h3>
-    <form id="formTarea">
+    <div>
         <label>Título:<br>
-            <input type="text" name="titulo" required style="width:100%; padding:8px; margin:5px 0;">
+            <input type="text" id="f_titulo" required style="width:100%; padding:8px; margin:5px 0; box-sizing:border-box;">
         </label><br>
+
         <label>Descripción:<br>
-            <textarea name="descripcion" style="width:100%; padding:8px; margin:5px 0; height:80px;"></textarea>
+            <textarea id="f_descripcion" style="width:100%; padding:8px; margin:5px 0; height:80px; box-sizing:border-box;"></textarea>
         </label><br>
+
         <label>Prioridad:<br>
-            <select name="prioridad" required style="width:100%; padding:8px; margin:5px 0;">
+            <select id="f_prioridad" style="width:100%; padding:8px; margin:5px 0; box-sizing:border-box;">
                 <option value="alta">Alta</option>
                 <option value="media" selected>Media</option>
                 <option value="baja">Baja</option>
             </select>
         </label><br>
+
         <label>Categoría:<br>
-            <input type="text" name="categoria" style="width:100%; padding:8px; margin:5px 0;">
+            <input type="text" id="f_categoria" style="width:100%; padding:8px; margin:5px 0; box-sizing:border-box;">
         </label><br>
+
         <label>Fecha límite:<br>
-            <input type="date" name="fecha_limite" required style="width:100%; padding:8px; margin:5px 0;">
+            <input type="date" id="f_fecha_limite" required style="width:100%; padding:8px; margin:5px 0; box-sizing:border-box;">
         </label><br>
+
         <label>Hora:<br>
-            <input type="time" name="hora" style="width:100%; padding:8px; margin:5px 0;">
+            <input type="time" id="f_hora" style="width:100%; padding:8px; margin:5px 0; box-sizing:border-box;">
         </label><br><br>
-        <button type="submit" style="background:#7b2cbf; color:white; padding:10px 20px; border:none; border-radius:4px; cursor:pointer;">✓ Crear tarea</button>
+
+        <button type="button" id="btnCrearTarea" style="background:#7b2cbf; color:white; padding:10px 20px; border:none; border-radius:4px; cursor:pointer;">✓ Crear tarea</button>
         <button type="button" id="cancelarForm" style="background:#ccc; color:#333; padding:10px 20px; border:none; border-radius:4px; cursor:pointer; margin-left:10px;">✕ Cancelar</button>
-    </form>
+    </div>
 </div>
 
+<!-- ─── LAYOUT PRINCIPAL ──────────────────────────────────────────────────────── -->
 <div class="tareas-layout">
 
+    <!-- Columna izquierda: pendientes + completadas -->
     <div class="tareas-col">
+
+        <!-- PENDIENTES -->
         <div class="tareas-box">
             <div class="tareas-box-title">
                 Pendientes
@@ -187,7 +196,7 @@ function formatearFechaHora($fecha_limite, $hora) {
                     list($clase_prioridad, $texto_prioridad) = mostrarPrioridad($tarea['prioridad']);
                     $fecha_formateada = formatearFechaHora($tarea['fecha_limite'], $tarea['hora']);
                 ?>
-                <div class="tarea-item" data-id="<?= $tarea['id'] ?>">
+                <div class="tarea-item" data-id="<?= intval($tarea['id']) ?>">
                     <div class="tarea-check" title="Marcar como completada"></div>
                     <div class="tarea-info">
                         <h3><?= htmlspecialchars($tarea['titulo']) ?></h3>
@@ -205,6 +214,7 @@ function formatearFechaHora($fecha_limite, $hora) {
             <?php endif; ?>
         </div>
 
+        <!-- COMPLETADAS -->
         <div class="tareas-box">
             <div class="tareas-box-title">Completadas</div>
 
@@ -215,7 +225,7 @@ function formatearFechaHora($fecha_limite, $hora) {
                     list($clase_prioridad, $texto_prioridad) = mostrarPrioridad($tarea['prioridad']);
                     $fecha_formateada = formatearFechaHora($tarea['fecha_limite'], $tarea['hora']);
                 ?>
-                <div class="tarea-item" data-id="<?= $tarea['id'] ?>">
+                <div class="tarea-item" data-id="<?= intval($tarea['id']) ?>">
                     <div class="tarea-check done" title="Tarea completada">
                         <i class="fa-solid fa-check"></i>
                     </div>
@@ -231,9 +241,13 @@ function formatearFechaHora($fecha_limite, $hora) {
                 <?php endforeach; ?>
             <?php endif; ?>
         </div>
+
     </div>
 
+    <!-- Columna derecha: resumen + categorías -->
     <div class="tareas-col">
+
+        <!-- RESUMEN -->
         <div class="tareas-box">
             <div class="tareas-box-title">Resumen</div>
             <div class="tareas-stat-grid">
@@ -246,12 +260,12 @@ function formatearFechaHora($fecha_limite, $hora) {
                     <p>Completadas</p>
                 </div>
                 <div class="tareas-stat">
-                    <h2><?= count(array_filter($tareas_pendientes, fn($t) => strtolower($t['prioridad']) == 'alta')) ?></h2>
+                    <h2><?= count(array_filter($tareas_pendientes, fn($t) => strtolower($t['prioridad']) === 'alta')) ?></h2>
                     <p>Alta prioridad</p>
                 </div>
                 <div class="tareas-stat">
-                    <?php 
-                    $total = count($tareas);
+                    <?php
+                    $total    = count($tareas);
                     $progreso = $total > 0 ? round(count($tareas_completadas) * 100 / $total) : 0;
                     ?>
                     <h2><?= $progreso ?>%</h2>
@@ -263,16 +277,22 @@ function formatearFechaHora($fecha_limite, $hora) {
             </div>
         </div>
 
+        <!-- CATEGORÍAS -->
         <div class="tareas-box">
             <div class="tareas-box-title">Por categoría</div>
             <?php
             $categorias = [];
             foreach ($tareas as $t) {
-                $cat = $t['categoria'] ?: 'Sin categoría';
-                if (!isset($categorias[$cat])) $categorias[$cat] = 0;
-                $categorias[$cat]++;
+                $cat = !empty($t['categoria']) ? $t['categoria'] : 'Sin categoría';
+                $categorias[$cat] = ($categorias[$cat] ?? 0) + 1;
             }
-            $colores = ['Ventas' => '#e04e1a', 'Inventario' => '#7b2cbf', 'Proveedores' => '#f5e100', 'Precios' => '#0e0e14', 'Sin categoría' => '#999'];
+            $colores = [
+                'Ventas'       => '#e04e1a',
+                'Inventario'   => '#7b2cbf',
+                'Proveedores'  => '#f5e100',
+                'Precios'      => '#0e0e14',
+                'Sin categoría'=> '#999',
+            ];
             foreach ($categorias as $cat => $cant):
                 $color = $colores[$cat] ?? '#666';
             ?>
@@ -283,11 +303,12 @@ function formatearFechaHora($fecha_limite, $hora) {
             </div>
             <?php endforeach; ?>
         </div>
+
     </div>
 </div>
 
+<!-- ─── ESTILOS ───────────────────────────────────────────────────────────────── -->
 <style>
-/* Estilos básicos, adapta según tu CSS */
 .btn-notification {
     background: none;
     border: none;
@@ -295,228 +316,210 @@ function formatearFechaHora($fecha_limite, $hora) {
     margin-left: 10px;
     font-size: 18px;
     color: #555;
+    transition: color 0.2s;
 }
-.btn-notification:hover {
-    color: #7b2cbf;
-}
+.btn-notification:hover { color: #7b2cbf; }
+
 .tarea-check {
     width: 24px;
     height: 24px;
+    min-width: 24px;
     border: 2px solid #0e0e14;
     border-radius: 4px;
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
+    transition: background 0.2s, border-color 0.2s;
 }
+.tarea-check:hover:not(.done) { border-color: #7b2cbf; }
 .tarea-check.done {
     background-color: #7b2cbf;
+    border-color: #7b2cbf;
     color: white;
 }
-.tarea-check.done i {
-    display: block;
-}
-.tarea-check i {
-    display: none;
-}
-.tarea-badge.alta {
-    background-color: #e04e1a;
-    color: white;
+
+.tarea-badge {
+    font-size: 12px;
     padding: 2px 8px;
     border-radius: 4px;
+    white-space: nowrap;
 }
-.tarea-badge.media {
-    background-color: #7b2cbf;
-    color: white;
-    padding: 2px 8px;
-    border-radius: 4px;
-}
-.tarea-badge.baja {
-    background-color: #f5e100;
-    color: black;
-    padding: 2px 8px;
-    border-radius: 4px;
-}
-.tachado {
-    text-decoration: line-through;
-    color: gray;
-}
+.tarea-badge.alta  { background-color: #e04e1a; color: white; }
+.tarea-badge.media { background-color: #7b2cbf; color: white; }
+.tarea-badge.baja  { background-color: #f5e100; color: #333; }
+
+.tachado { text-decoration: line-through; color: gray; }
 </style>
 
+<!-- ─── JAVASCRIPT ────────────────────────────────────────────────────────────── -->
 <script>
-// Mostrar/ocultar formulario de nueva tarea
-document.getElementById('btnNuevaTarea').addEventListener('click', (e) => {
-    e.preventDefault();
-    document.getElementById('formNuevaTarea').style.display = 'block';
-});
+// URL correcta del archivo, resuelta por PHP
+const TAREAS_URL = '<?= $url_actual ?>';
 
-document.getElementById('btnAgregarPendiente').addEventListener('click', (e) => {
-    e.preventDefault();
+// ── Mostrar / ocultar formulario ──────────────────────────────────────────────
+function abrirForm() {
     document.getElementById('formNuevaTarea').style.display = 'block';
-});
+}
 
-document.getElementById('cancelarForm').addEventListener('click', (e) => {
-    e.preventDefault();
+function cerrarForm() {
     document.getElementById('formNuevaTarea').style.display = 'none';
-    document.getElementById('formTarea').reset();
-});
+    document.getElementById('f_titulo').value       = '';
+    document.getElementById('f_descripcion').value  = '';
+    document.getElementById('f_prioridad').value    = 'media';
+    document.getElementById('f_categoria').value    = '';
+    document.getElementById('f_fecha_limite').value = '';
+    document.getElementById('f_hora').value         = '';
+}
 
-// Botones que no hacen nada aún
-document.getElementById('btnFiltrar').addEventListener('click', (e) => {
-    e.preventDefault();
+document.getElementById('btnNuevaTarea').addEventListener('click', abrirForm);
+document.getElementById('btnAgregarPendiente').addEventListener('click', abrirForm);
+document.getElementById('cancelarForm').addEventListener('click', cerrarForm);
+
+// Botones sin implementar aún
+document.getElementById('btnFiltrar').addEventListener('click', () => {
     alert('Función de filtro aún no implementada');
 });
-
-document.getElementById('btnExportar').addEventListener('click', (e) => {
-    e.preventDefault();
+document.getElementById('btnExportar').addEventListener('click', () => {
     alert('Función de exportar aún no implementada');
 });
 
-// Enviar formulario como AJAX
-document.getElementById('formTarea').addEventListener('submit', (e) => {
-    e.preventDefault();
-    console.log('📝 Enviando formulario...');
-    
-    const titulo = document.querySelector('input[name="titulo"]').value.trim();
-    const fecha_limite = document.querySelector('input[name="fecha_limite"]').value;
-    
-    if (!titulo || !fecha_limite) {
-        alert('⚠️ Por favor completa título y fecha');
+// ── Crear tarea ───────────────────────────────────────────────────────────────
+document.getElementById('btnCrearTarea').addEventListener('click', () => {
+    const titulo       = document.getElementById('f_titulo').value.trim();
+    const descripcion  = document.getElementById('f_descripcion').value.trim();
+    const prioridad    = document.getElementById('f_prioridad').value;
+    const categoria    = document.getElementById('f_categoria').value.trim();
+    const fecha_limite = document.getElementById('f_fecha_limite').value;
+    const hora         = document.getElementById('f_hora').value;
+
+    if (!titulo) {
+        alert('⚠️ El título es obligatorio');
         return;
     }
-    
-    const formData = new FormData(document.getElementById('formTarea'));
-    formData.append('accion', 'crear');
-    
-    console.log('📤 Enviando a tareas.php...');
-    
-    fetch('tareas.php', {
-        method: 'POST',
-        body: formData
-    })
-    .then(res => {
-        console.log('✅ Response status:', res.status);
-        return res.text();
-    })
-    .then(text => {
-        console.log('📨 Respuesta raw:', text);
-        try {
-            const data = JSON.parse(text);
-            console.log('✅ Respuesta JSON:', data);
-            if (data.success) {
-                alert('✓ Tarea creada correctamente');
-                document.getElementById('formTarea').reset();
-                document.getElementById('formNuevaTarea').style.display = 'none';
-                setTimeout(() => location.reload(), 1000);
-            } else {
-                alert('✗ Error: ' + (data.error || 'No se pudo crear'));
-            }
-        } catch (e) {
-            console.error('❌ Error al parsear JSON:', e);
-            console.error('Texto recibido:', text);
-            alert('✗ Error en la respuesta del servidor');
-        }
-    })
-    .catch(err => {
-        console.error('❌ Error en fetch:', err);
-        alert('✗ Error en la conexión');
-    });
-});
+    if (!fecha_limite) {
+        alert('⚠️ La fecha límite es obligatoria');
+        return;
+    }
 
-// Notificación con recordatorio (usando método seguro sin localStorage)
-function inicializarNotificaciones() {
-    document.querySelectorAll('.btn-notification').forEach((btn) => {
-        const tareaItem = btn.closest('.tarea-item');
-        const tareaId = tareaItem.dataset.id;
-        
-        // Evento click
-        btn.addEventListener('click', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            
-            const titulo = tareaItem.querySelector('h3').innerText;
-            const estaActivo = btn.querySelector('i').classList.contains('fa-solid');
-            
-            if (!estaActivo) {
-                btn.querySelector('i').classList.remove('fa-regular');
-                btn.querySelector('i').classList.add('fa-solid');
-                btn.style.color = '#7b2cbf';
-                alert('🔔 Recordatorio activado para: ' + titulo);
-            } else {
-                btn.querySelector('i').classList.remove('fa-solid');
-                btn.querySelector('i').classList.add('fa-regular');
-                btn.style.color = '#555';
-                alert('🔕 Recordatorio desactivado');
-            }
-        });
-    });
-}
+    const fd = new FormData();
+    fd.append('accion',       'crear');
+    fd.append('titulo',       titulo);
+    fd.append('descripcion',  descripcion);
+    fd.append('prioridad',    prioridad);
+    fd.append('categoria',    categoria);
+    fd.append('fecha_limite', fecha_limite);
+    fd.append('hora',         hora);
 
-// Marcar tarea como completada
-function inicializarCheckbox() {
-    console.log('🔧 Inicializando checkboxes...');
-    document.querySelectorAll('.tarea-check:not(.done)').forEach(check => {
-        check.addEventListener('click', () => {
-            const tareaItem = check.closest('.tarea-item');
-            const tareaId = tareaItem.dataset.id;
-            const titulo = tareaItem.querySelector('h3').innerText;
-            
-            console.log('✅ Marcando tarea:', tareaId, titulo);
-            
-            if (!tareaId) {
-                console.error('❌ No hay ID de tarea');
+    // Deshabilitar botón mientras se envía
+    const btn = document.getElementById('btnCrearTarea');
+    btn.disabled    = true;
+    btn.textContent = 'Creando...';
+
+    fetch(TAREAS_URL, { method: 'POST', body: fd })
+        .then(res => res.text())
+        .then(text => {
+            let data;
+            try {
+                data = JSON.parse(text);
+            } catch (e) {
+                console.error('Respuesta no es JSON:', text);
+                alert('✗ Error en la respuesta del servidor. Revisa la consola.');
+                btn.disabled    = false;
+                btn.textContent = '✓ Crear tarea';
                 return;
             }
-            
-            const formData = new FormData();
-            formData.append('accion', 'completar');
-            formData.append('id', tareaId);
-            
-            fetch('tareas.php', {
-                method: 'POST',
-                body: formData
-            })
-            .then(res => {
-                console.log('✅ Response completar:', res.status);
-                return res.text();
-            })
+
+            if (data.success) {
+                cerrarForm();
+                location.reload();
+            } else {
+                alert('✗ Error: ' + (data.error || 'No se pudo crear la tarea'));
+                btn.disabled    = false;
+                btn.textContent = '✓ Crear tarea';
+            }
+        })
+        .catch(err => {
+            console.error('Error fetch:', err);
+            alert('✗ Error de conexión');
+            btn.disabled    = false;
+            btn.textContent = '✓ Crear tarea';
+        });
+});
+
+// ── Marcar tarea como completada ──────────────────────────────────────────────
+document.querySelectorAll('.tarea-check:not(.done)').forEach(check => {
+    check.addEventListener('click', () => {
+        const item    = check.closest('.tarea-item');
+        const tareaId = item.dataset.id;
+
+        if (!tareaId) {
+            console.error('No se encontró el ID de la tarea');
+            return;
+        }
+
+        // Feedback visual inmediato
+        check.style.opacity = '0.5';
+        check.style.cursor  = 'default';
+
+        const fd = new FormData();
+        fd.append('accion', 'completar');
+        fd.append('id',     tareaId);
+
+        fetch(TAREAS_URL, { method: 'POST', body: fd })
+            .then(res => res.text())
             .then(text => {
-                console.log('📨 Respuesta completar raw:', text);
+                let data;
                 try {
-                    const data = JSON.parse(text);
-                    console.log('✅ Respuesta completar JSON:', data);
-                    if (data.success) {
-                        check.classList.add('done');
-                        check.innerHTML = '<i class="fa-solid fa-check"></i>';
-                        tareaItem.querySelector('h3').classList.add('tachado');
-                        alert('✓ ' + titulo + ' marcada como completada');
-                        setTimeout(() => location.reload(), 1000);
-                    } else {
-                        alert('✗ Error: ' + (data.error || 'No se pudo actualizar'));
-                    }
+                    data = JSON.parse(text);
                 } catch (e) {
-                    console.error('❌ Error al parsear JSON completar:', e);
+                    console.error('Respuesta no es JSON:', text);
                     alert('✗ Error en la respuesta del servidor');
+                    check.style.opacity = '1';
+                    check.style.cursor  = 'pointer';
+                    return;
+                }
+
+                if (data.success) {
+                    check.classList.add('done');
+                    check.innerHTML    = '<i class="fa-solid fa-check"></i>';
+                    check.style.opacity = '1';
+                    item.querySelector('h3').classList.add('tachado');
+                    setTimeout(() => location.reload(), 800);
+                } else {
+                    alert('✗ Error: ' + (data.error || 'No se pudo actualizar'));
+                    check.style.opacity = '1';
+                    check.style.cursor  = 'pointer';
                 }
             })
             .catch(err => {
-                console.error('❌ Error en fetch completar:', err);
-                alert('✗ Error en la conexión');
+                console.error('Error fetch completar:', err);
+                alert('✗ Error de conexión');
+                check.style.opacity = '1';
+                check.style.cursor  = 'pointer';
             });
-        });
     });
-}
+});
 
-// Inicializar cuando el DOM esté listo
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => {
-        console.log('DOM cargado, inicializando...');
-        inicializarNotificaciones();
-        inicializarCheckbox();
+// ── Botones de notificación / recordatorio ────────────────────────────────────
+document.querySelectorAll('.btn-notification').forEach(btn => {
+    btn.addEventListener('click', e => {
+        e.stopPropagation();
+        const titulo = btn.closest('.tarea-item').querySelector('h3').innerText;
+        const icono  = btn.querySelector('i');
+        const activo = icono.classList.contains('fa-solid');
+
+        if (!activo) {
+            icono.classList.remove('fa-regular');
+            icono.classList.add('fa-solid');
+            btn.style.color = '#7b2cbf';
+            alert('🔔 Recordatorio activado para: ' + titulo);
+        } else {
+            icono.classList.remove('fa-solid');
+            icono.classList.add('fa-regular');
+            btn.style.color = '#555';
+            alert('🔕 Recordatorio desactivado');
+        }
     });
-} else {
-    console.log('DOM ya cargado, inicializando...');
-    inicializarNotificaciones();
-    inicializarCheckbox();
-}
+});
 </script>
