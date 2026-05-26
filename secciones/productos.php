@@ -9,20 +9,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['accion'])) {
 
     if ($_POST['accion'] === 'crear') {
         $nombre    = trim($_POST['nombre']          ?? '');
-        $precio    = floatval($_POST['precio']       ?? 0);
-        $fecha     = $_POST['fecha_caducidad']       ?? '';
-        $stock     = (int)($_POST['stock']           ?? 0);
-        $categoria = trim($_POST['categoria']        ?? '');
+        $precio    = trim($_POST['precio']          ?? '0');
+        $fecha     = trim($_POST['fecha_caducidad'] ?? '');
+        $stock     = trim($_POST['stock']           ?? '0');
+        $categoria = trim($_POST['categoria']       ?? '');
 
         if ($nombre === '' || $fecha === '') {
-            echo json_encode(['ok' => false, 'msg' => 'Nombre y fecha de caducidad son obligatorios']);
+            echo json_encode(['ok' => false, 'msg' => 'Nombre y fecha son obligatorios']);
             exit;
         }
 
         $sql  = "INSERT INTO productos (id_usuario, nombre, precio, fecha_caducidad, stock, categoria) VALUES (?, ?, ?, ?, ?, ?)";
         $stmt = mysqli_prepare($con, $sql);
-        
-        mysqli_stmt_bind_param($stmt, 'isssss', $id_usuario, $nombre, (string)$precio, $fecha, (string)$stock, $categoria);
+        mysqli_stmt_bind_param($stmt, 'isssss', $id_usuario, $nombre, $precio, $fecha, $stock, $categoria);
 
         if (mysqli_stmt_execute($stmt)) {
             echo json_encode(['ok' => true]);
@@ -54,11 +53,11 @@ $productos = [];
 while ($r = mysqli_fetch_assoc($res)) $productos[] = $r;
 mysqli_stmt_close($stmt);
 
-$total     = count($productos);
-$hoy       = date('Y-m-d');
-$proximos  = array_filter($productos, fn($p) => $p['fecha_caducidad'] >= $hoy && $p['fecha_caducidad'] <= date('Y-m-d', strtotime('+7 days')));
-$vencidos  = array_filter($productos, fn($p) => $p['fecha_caducidad'] < $hoy);
-$sin_stock = array_filter($productos, fn($p) => (int)$p['stock'] === 0);
+$total    = count($productos);
+$hoy      = date('Y-m-d');
+$proximos = array_filter($productos, fn($p) => $p['fecha_caducidad'] >= $hoy && $p['fecha_caducidad'] <= date('Y-m-d', strtotime('+7 days')));
+$vencidos = array_filter($productos, fn($p) => $p['fecha_caducidad'] < $hoy);
+$sin_stock= array_filter($productos, fn($p) => (int)$p['stock'] === 0);
 
 function estado_fecha(string $f): array {
     $hoy  = date('Y-m-d');
@@ -124,7 +123,6 @@ function estado_fecha(string $f): array {
                 Inventario
                 <span style="font-size:13px;font-weight:500;color:var(--muted);">(<?= $total ?>)</span>
             </div>
-
             <?php if (empty($productos)): ?>
                 <p style="padding:16px 0;color:var(--muted);font-size:14px;">No hay productos. ¡Agrega uno!</p>
             <?php else: ?>
@@ -220,60 +218,33 @@ function estado_fecha(string $f): array {
 
 </div>
 
-<!-- MODAL — se agrega al body para que position:fixed funcione bien -->
-<script>
-(function(){
-    // Eliminar modal anterior si existe (evita IDs duplicados)
-    var viejo = document.getElementById('prod-modal');
-    if (viejo) viejo.remove();
-
-    var html = `
-    <div id="prod-modal" style="display:none;position:fixed;inset:0;background:rgba(14,14,20,.5);z-index:9999;align-items:center;justify-content:center;backdrop-filter:blur(4px);">
-        <div style="background:var(--card);border:2px solid var(--black);border-radius:22px;box-shadow:8px 8px 0 var(--black);width:480px;max-width:95vw;overflow:hidden;">
-            <div style="padding:20px 24px;border-bottom:2px solid var(--line);display:flex;justify-content:space-between;align-items:center;">
-                <h2 style="font-size:18px;font-weight:800;color:var(--black);font-family:var(--font);margin:0;">Nuevo Producto</h2>
-                <button onclick="productos.cerrarModal()" style="width:32px;height:32px;border-radius:8px;border:2px solid var(--black);background:var(--bg);cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;">
-                    <i class="fa-solid fa-xmark"></i>
-                </button>
-            </div>
-            <div style="padding:24px;display:flex;flex-direction:column;gap:16px;">
-                <div class="campo">
-                    <label>Nombre *</label>
-                    <input type="text" id="p-nombre" placeholder="Nombre del producto">
-                </div>
-                <div class="campo-row">
-                    <div class="campo">
-                        <label>Precio</label>
-                        <input type="number" id="p-precio" placeholder="0" min="0" step="0.01">
-                    </div>
-                    <div class="campo">
-                        <label>Stock</label>
-                        <input type="number" id="p-stock" placeholder="0" min="0">
-                    </div>
-                </div>
-                <div class="campo-row">
-                    <div class="campo">
-                        <label>Fecha caducidad *</label>
-                        <input type="date" id="p-fecha">
-                    </div>
-                    <div class="campo">
-                        <label>Categoría</label>
-                        <input type="text" id="p-categoria" placeholder="Ej: Lácteos">
-                    </div>
-                </div>
-                <p id="p-error" style="color:#e04e1a;font-size:13px;display:none;margin:0;"></p>
-            </div>
-            <div style="padding:16px 24px;border-top:2px solid var(--line);display:flex;justify-content:flex-end;gap:12px;">
-                <button class="btn-cancelar" onclick="productos.cerrarModal()">Cancelar</button>
-                <button class="btn-guardar" id="p-btnGuardar" onclick="productos.guardar()">
-                    <i class="fa-solid fa-check"></i> Guardar
-                </button>
-            </div>
+<!-- MODAL — igual que tareas, directo en el HTML -->
+<div id="prod-modal" class="t-modal-overlay" style="display:none;">
+    <div class="t-modal-box">
+        <div class="t-modal-header">
+            <h2>Nuevo Producto</h2>
+            <button class="modal-close" onclick="productos.cerrarModal()"><i class="fa-solid fa-xmark"></i></button>
         </div>
-    </div>`;
-    document.body.insertAdjacentHTML('beforeend', html);
-})();
-</script>
+        <div class="t-modal-body">
+            <div class="campo"><label>Nombre *</label><input type="text" id="p-nombre" placeholder="Nombre del producto"></div>
+            <div class="campo-row">
+                <div class="campo"><label>Precio</label><input type="number" id="p-precio" placeholder="0" min="0" step="0.01"></div>
+                <div class="campo"><label>Stock</label><input type="number" id="p-stock" placeholder="0" min="0"></div>
+            </div>
+            <div class="campo-row">
+                <div class="campo"><label>Fecha caducidad *</label><input type="date" id="p-fecha"></div>
+                <div class="campo"><label>Categoría</label><input type="text" id="p-categoria" placeholder="Ej: Lácteos"></div>
+            </div>
+            <p id="p-error" style="color:#e04e1a;font-size:13px;display:none;margin:0;"></p>
+        </div>
+        <div class="t-modal-footer">
+            <button class="btn-cancelar" onclick="productos.cerrarModal()">Cancelar</button>
+            <button class="btn-guardar" id="p-btnGuardar" onclick="productos.guardar()">
+                <i class="fa-solid fa-check"></i> Guardar
+            </button>
+        </div>
+    </div>
+</div>
 
 <style>
 .prod-tabla-header{display:flex;align-items:center;gap:12px;padding:8px 14px;border-radius:10px;background:var(--line);margin-bottom:8px;font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;}
@@ -325,22 +296,19 @@ var productos = (function() {
     }
 
     function abrirModal() {
-        var m = document.getElementById('prod-modal');
-        m.style.display = 'flex';
+        document.getElementById('prod-modal').style.display = 'flex';
         document.getElementById('p-nombre').focus();
     }
 
     function cerrarModal() {
-        var m = document.getElementById('prod-modal');
-        if (m) m.style.display = 'none';
-        var err = document.getElementById('p-error');
-        if (err) err.style.display = 'none';
+        document.getElementById('prod-modal').style.display = 'none';
+        document.getElementById('p-error').style.display = 'none';
         ['p-nombre','p-precio','p-stock','p-fecha','p-categoria'].forEach(function(id) {
-            var el = document.getElementById(id);
-            if (el) el.value = '';
+            document.getElementById(id).value = '';
         });
         var btn = document.getElementById('p-btnGuardar');
-        if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-check"></i> Guardar'; }
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fa-solid fa-check"></i> Guardar';
     }
 
     function guardar() {
@@ -359,8 +327,8 @@ var productos = (function() {
         post({
             accion:          'crear',
             nombre:          nombre,
-            precio:          document.getElementById('p-precio').value || 0,
-            stock:           document.getElementById('p-stock').value || 0,
+            precio:          document.getElementById('p-precio').value || '0',
+            stock:           document.getElementById('p-stock').value || '0',
             fecha_caducidad: fecha,
             categoria:       document.getElementById('p-categoria').value.trim()
         }, function(error, data) {
