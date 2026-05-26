@@ -4,13 +4,9 @@ include_once __DIR__ . '/../connection.php';
 $con = connection();
 $id_usuario = (int)($_SESSION['user_id'] ?? 0);
 
-// ═══════════════════════════════════════════════════════════════
-// AJAX — recibe POST, responde JSON y termina
-// ═══════════════════════════════════════════════════════════════
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['accion'])) {
     header('Content-Type: application/json; charset=utf-8');
 
-    // ── Crear tarea ──────────────────────────────────────────
     if ($_POST['accion'] === 'crear') {
         $titulo    = trim($_POST['titulo']      ?? '');
         $desc      = trim($_POST['descripcion'] ?? '');
@@ -24,12 +20,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['accion'])) {
             exit;
         }
 
-        $sql  = "INSERT INTO tareas
-                    (id_usuario, titulo, descripcion, prioridad, categoria, fecha_limite, hora, completada, fecha_creacion)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, 0, NOW())";
+        $sql  = "INSERT INTO tareas (id_usuario, titulo, descripcion, prioridad, categoria, fecha_limite, hora, completada, fecha_creacion) VALUES (?, ?, ?, ?, ?, ?, ?, 0, NOW())";
         $stmt = mysqli_prepare($con, $sql);
-        mysqli_stmt_bind_param($stmt, 'issssss',
-            $id_usuario, $titulo, $desc, $prioridad, $categoria, $fecha, $hora);
+        mysqli_stmt_bind_param($stmt, 'issssss', $id_usuario, $titulo, $desc, $prioridad, $categoria, $fecha, $hora);
 
         if (mysqli_stmt_execute($stmt)) {
             echo json_encode(['ok' => true, 'id' => mysqli_insert_id($con)]);
@@ -40,7 +33,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['accion'])) {
         exit;
     }
 
-    // ── Completar tarea ──────────────────────────────────────
     if ($_POST['accion'] === 'completar') {
         $id   = (int)($_POST['id'] ?? 0);
         $stmt = mysqli_prepare($con, "UPDATE tareas SET completada=1 WHERE id=? AND id_usuario=?");
@@ -50,7 +42,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['accion'])) {
         exit;
     }
 
-    // ── Eliminar tarea ───────────────────────────────────────
     if ($_POST['accion'] === 'eliminar') {
         $id   = (int)($_POST['id'] ?? 0);
         $stmt = mysqli_prepare($con, "DELETE FROM tareas WHERE id=? AND id_usuario=?");
@@ -64,11 +55,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['accion'])) {
     exit;
 }
 
-// ═══════════════════════════════════════════════════════════════
-// GET — cargar datos para renderizar
-// ═══════════════════════════════════════════════════════════════
-$stmt = mysqli_prepare($con,
-    "SELECT * FROM tareas WHERE id_usuario=? ORDER BY fecha_limite ASC, hora ASC");
+$stmt = mysqli_prepare($con, "SELECT * FROM tareas WHERE id_usuario=? ORDER BY fecha_limite ASC, hora ASC");
 mysqli_stmt_bind_param($stmt, 'i', $id_usuario);
 mysqli_stmt_execute($stmt);
 $res    = mysqli_stmt_get_result($stmt);
@@ -99,16 +86,12 @@ function fmt_fecha(string $f = null, string $h = null): string {
     return date('d M Y', strtotime($f)) . $suf;
 }
 ?>
-<!-- ═══════════════════════════════════════════════════════════
-     TOPBAR
-═══════════════════════════════════════════════════════════ -->
 <div class="topbar">
     <div class="topbar-top">
         <div class="welcome"><h1>Tareas</h1></div>
         <?php if (!empty($_SESSION['foto'])): ?>
             <a href="secciones/perfil.php" class="profile" style="text-decoration:none;padding:0;overflow:hidden;">
-                <img src="<?= htmlspecialchars($_SESSION['foto']) ?>"
-                     style="width:48px;height:48px;border-radius:50%;object-fit:cover;display:block;border:2px solid #0e0e14;box-shadow:3px 3px 0 #0e0e14;">
+                <img src="<?= htmlspecialchars($_SESSION['foto']) ?>" style="width:48px;height:48px;border-radius:50%;object-fit:cover;display:block;border:2px solid #0e0e14;box-shadow:3px 3px 0 #0e0e14;">
             </a>
         <?php else: ?>
             <a href="secciones/perfil.php" class="profile" style="text-decoration:none;">
@@ -125,16 +108,9 @@ function fmt_fecha(string $f = null, string $h = null): string {
         <button class="tool-btn orange" onclick="tareas.toggleFiltros()">
             <i class="fa-solid fa-filter"></i> Filtrar
         </button>
-        <div class="spacer"></div>
-        <button class="tool-btn dark" onclick="tareas.exportar()">
-            <i class="fa-solid fa-download"></i> Exportar CSV
-        </button>
     </div>
 </div>
 
-<!-- ═══════════════════════════════════════════════════════════
-     FILTROS
-═══════════════════════════════════════════════════════════ -->
 <div id="tareas-filtros" style="display:none;" class="tareas-box">
     <div style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;">
         <div class="campo">
@@ -159,15 +135,8 @@ function fmt_fecha(string $f = null, string $h = null): string {
     </div>
 </div>
 
-<!-- ═══════════════════════════════════════════════════════════
-     LAYOUT PRINCIPAL
-═══════════════════════════════════════════════════════════ -->
 <div class="tareas-layout">
-
-    <!-- ── Columna izquierda ───────────────────────────────── -->
     <div class="tareas-col">
-
-        <!-- Pendientes -->
         <div class="tareas-box">
             <div class="tareas-box-title">
                 Pendientes
@@ -176,16 +145,10 @@ function fmt_fecha(string $f = null, string $h = null): string {
                     <i class="fa-solid fa-plus"></i> Agregar
                 </button>
             </div>
-
             <?php if (empty($pendientes)): ?>
-                <p style="padding:16px 0;color:var(--muted);font-size:14px;">
-                    No hay tareas pendientes. ¡Agrega una!
-                </p>
+                <p style="padding:16px 0;color:var(--muted);font-size:14px;">No hay tareas pendientes. ¡Agrega una!</p>
             <?php else: foreach ($pendientes as $t): ?>
-                <div class="tarea-item"
-                     data-id="<?= $t['id'] ?>"
-                     data-prio="<?= strtolower($t['prioridad']) ?>"
-                     data-estado="pendiente">
+                <div class="tarea-item" data-id="<?= $t['id'] ?>" data-prio="<?= strtolower($t['prioridad']) ?>" data-estado="pendiente">
                     <div class="tarea-check" onclick="tareas.completar(this)"></div>
                     <div class="tarea-info">
                         <h3><?= htmlspecialchars($t['titulo']) ?></h3>
@@ -196,14 +159,11 @@ function fmt_fecha(string $f = null, string $h = null): string {
                             <i class="fa-solid fa-calendar"></i>
                             <?= fmt_fecha($t['fecha_limite'], $t['hora']) ?>
                             <?php if (!empty($t['categoria'])): ?>
-                                &nbsp;·&nbsp;<i class="fa-solid fa-tag"></i>
-                                <?= htmlspecialchars($t['categoria']) ?>
+                                &nbsp;·&nbsp;<i class="fa-solid fa-tag"></i> <?= htmlspecialchars($t['categoria']) ?>
                             <?php endif; ?>
                         </p>
                     </div>
-                    <span class="tarea-badge <?= strtolower($t['prioridad']) ?>">
-                        <?= ucfirst($t['prioridad']) ?>
-                    </span>
+                    <span class="tarea-badge <?= strtolower($t['prioridad']) ?>"><?= ucfirst($t['prioridad']) ?></span>
                     <button class="t-btn-eliminar" onclick="tareas.eliminar(<?= $t['id'] ?>)">
                         <i class="fa-solid fa-trash"></i>
                     </button>
@@ -211,45 +171,30 @@ function fmt_fecha(string $f = null, string $h = null): string {
             <?php endforeach; endif; ?>
         </div>
 
-        <!-- Completadas -->
         <div class="tareas-box">
             <div class="tareas-box-title">
                 Completadas
                 <span style="font-size:13px;font-weight:500;color:var(--muted);">(<?= count($completadas) ?>)</span>
             </div>
-
             <?php if (empty($completadas)): ?>
-                <p style="padding:16px 0;color:var(--muted);font-size:14px;">
-                    No hay tareas completadas aún.
-                </p>
+                <p style="padding:16px 0;color:var(--muted);font-size:14px;">No hay tareas completadas aún.</p>
             <?php else: foreach ($completadas as $t): ?>
-                <div class="tarea-item"
-                     data-id="<?= $t['id'] ?>"
-                     data-prio="<?= strtolower($t['prioridad']) ?>"
-                     data-estado="completada">
-                    <div class="tarea-check done">
-                        <i class="fa-solid fa-check"></i>
-                    </div>
+                <div class="tarea-item" data-id="<?= $t['id'] ?>" data-prio="<?= strtolower($t['prioridad']) ?>" data-estado="completada">
+                    <div class="tarea-check done"><i class="fa-solid fa-check"></i></div>
                     <div class="tarea-info">
                         <h3 class="tachado"><?= htmlspecialchars($t['titulo']) ?></h3>
                         <p>Completada · <?= fmt_fecha($t['fecha_limite'], $t['hora']) ?></p>
                     </div>
-                    <span class="tarea-badge <?= strtolower($t['prioridad']) ?>">
-                        <?= ucfirst($t['prioridad']) ?>
-                    </span>
+                    <span class="tarea-badge <?= strtolower($t['prioridad']) ?>"><?= ucfirst($t['prioridad']) ?></span>
                     <button class="t-btn-eliminar" onclick="tareas.eliminar(<?= $t['id'] ?>)">
                         <i class="fa-solid fa-trash"></i>
                     </button>
                 </div>
             <?php endforeach; endif; ?>
         </div>
-
     </div>
 
-    <!-- ── Columna derecha ────────────────────────────────── -->
     <div class="tareas-col">
-
-        <!-- Resumen -->
         <div class="tareas-box">
             <div class="tareas-box-title">Resumen</div>
             <div class="tareas-stat-grid">
@@ -263,67 +208,43 @@ function fmt_fecha(string $f = null, string $h = null): string {
             </div>
         </div>
 
-        <!-- Categorías -->
         <div class="tareas-box">
             <div class="tareas-box-title">Por categoría</div>
             <?php if (empty($categorias)): ?>
                 <p style="color:var(--muted);font-size:13px;padding:12px 0;">Sin categorías aún.</p>
             <?php else: $ci = 0; foreach ($categorias as $cat => $cnt): ?>
                 <div class="tareas-cat-item">
-                    <div class="tareas-cat-dot"
-                         style="background:<?= $colores_cat[$ci % count($colores_cat)] ?>;"></div>
+                    <div class="tareas-cat-dot" style="background:<?= $colores_cat[$ci % count($colores_cat)] ?>;"></div>
                     <span><?= htmlspecialchars($cat) ?></span>
                     <small><?= $cnt ?> tarea<?= $cnt !== 1 ? 's' : '' ?></small>
                 </div>
             <?php $ci++; endforeach; endif; ?>
         </div>
-
     </div>
 </div>
 
-<!-- ═══════════════════════════════════════════════════════════
-     MODAL NUEVA TAREA
-═══════════════════════════════════════════════════════════ -->
 <div id="tareas-modal" class="t-modal-overlay" style="display:none;">
     <div class="t-modal-box">
         <div class="t-modal-header">
             <h2>Nueva Tarea</h2>
-            <button class="modal-close" onclick="tareas.cerrarModal()">
-                <i class="fa-solid fa-xmark"></i>
-            </button>
+            <button class="modal-close" onclick="tareas.cerrarModal()"><i class="fa-solid fa-xmark"></i></button>
         </div>
         <div class="t-modal-body">
-            <div class="campo">
-                <label>Título *</label>
-                <input type="text" id="t-titulo" placeholder="Nombre de la tarea">
-            </div>
-            <div class="campo">
-                <label>Descripción</label>
-                <textarea id="t-desc" placeholder="Descripción opcional..."></textarea>
-            </div>
+            <div class="campo"><label>Título *</label><input type="text" id="t-titulo" placeholder="Nombre de la tarea"></div>
+            <div class="campo"><label>Descripción</label><textarea id="t-desc" placeholder="Descripción opcional..."></textarea></div>
             <div class="campo-row">
-                <div class="campo">
-                    <label>Prioridad</label>
+                <div class="campo"><label>Prioridad</label>
                     <select id="t-prioridad">
                         <option value="alta">Alta</option>
                         <option value="media" selected>Media</option>
                         <option value="baja">Baja</option>
                     </select>
                 </div>
-                <div class="campo">
-                    <label>Categoría</label>
-                    <input type="text" id="t-categoria" placeholder="Ej: Ventas">
-                </div>
+                <div class="campo"><label>Categoría</label><input type="text" id="t-categoria" placeholder="Ej: Ventas"></div>
             </div>
             <div class="campo-row">
-                <div class="campo">
-                    <label>Fecha límite *</label>
-                    <input type="date" id="t-fecha">
-                </div>
-                <div class="campo">
-                    <label>Hora</label>
-                    <input type="time" id="t-hora">
-                </div>
+                <div class="campo"><label>Fecha límite *</label><input type="date" id="t-fecha"></div>
+                <div class="campo"><label>Hora</label><input type="time" id="t-hora"></div>
             </div>
             <p id="t-error" style="color:#e04e1a;font-size:13px;display:none;margin:0;"></p>
         </div>
@@ -336,11 +257,7 @@ function fmt_fecha(string $f = null, string $h = null): string {
     </div>
 </div>
 
-<!-- ═══════════════════════════════════════════════════════════
-     ESTILOS
-═══════════════════════════════════════════════════════════ -->
 <style>
-/* Tareas */
 .tarea-item{display:flex;align-items:center;gap:12px;padding:14px;border-radius:14px;border:2px solid var(--line);background:var(--bg);margin-bottom:10px;transition:border-color .2s;}
 .tarea-item:hover{border-color:var(--black);}
 .tarea-item:last-child{margin-bottom:0;}
@@ -357,9 +274,7 @@ function fmt_fecha(string $f = null, string $h = null): string {
 .tachado{text-decoration:line-through;color:var(--muted) !important;}
 .t-btn-eliminar{background:none;border:1.5px solid var(--line);color:var(--muted);border-radius:8px;padding:5px 8px;cursor:pointer;font-size:11px;flex-shrink:0;transition:all .15s;}
 .t-btn-eliminar:hover{border-color:#e04e1a;color:#e04e1a;}
-/* Filtros select */
 #tareas-filtros .campo select{padding:10px 14px;border:2px solid var(--black);border-radius:10px;background:var(--bg);font-family:var(--font);font-size:14px;color:var(--black);outline:none;}
-/* Modal */
 .t-modal-overlay{position:fixed;inset:0;background:rgba(14,14,20,.5);z-index:9999;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px);}
 .t-modal-box{background:var(--card);border:2px solid var(--black);border-radius:22px;box-shadow:8px 8px 0 var(--black);width:480px;max-width:95vw;overflow:hidden;}
 .t-modal-header{padding:20px 24px;border-bottom:2px solid var(--line);display:flex;justify-content:space-between;align-items:center;}
@@ -378,16 +293,11 @@ function fmt_fecha(string $f = null, string $h = null): string {
 .btn-guardar:hover{transform:translateY(-2px);box-shadow:5px 5px 0 #7b2cbf;}
 </style>
 
-<!-- ═══════════════════════════════════════════════════════════
-     JAVASCRIPT
-═══════════════════════════════════════════════════════════ -->
 <script>
 var tareas = (function() {
 
-    // URL del propio archivo — se detecta automáticamente
     var URL_ENDPOINT = window.location.origin + '/secciones/tareas.php';
 
-    /* ── helpers ───────────────────────────────────────────── */
     function post(datos, cb) {
         var fd = new FormData();
         Object.keys(datos).forEach(function(k) { fd.append(k, datos[k]); });
@@ -401,15 +311,10 @@ var tareas = (function() {
     }
 
     function recargar() {
-        fetch(URL_ENDPOINT)
-            .then(function(r) { return r.text(); })
-            .then(function(html) {
-                var mc = document.getElementById('main-content');
-                if (mc) mc.innerHTML = html;
-            });
+        var linkActivo = document.querySelector('.menu a.active');
+        if (linkActivo) cargarSeccion('tareas', linkActivo);
     }
 
-    /* ── modal ─────────────────────────────────────────────── */
     function abrirModal() {
         document.getElementById('tareas-modal').style.display = 'flex';
         document.getElementById('t-titulo').focus();
@@ -427,7 +332,6 @@ var tareas = (function() {
         btn.innerHTML = '<i class="fa-solid fa-check"></i> Guardar';
     }
 
-    /* ── guardar nueva tarea ───────────────────────────────── */
     function guardar() {
         var titulo = document.getElementById('t-titulo').value.trim();
         var fecha  = document.getElementById('t-fecha').value.trim();
@@ -469,7 +373,6 @@ var tareas = (function() {
         });
     }
 
-    /* ── completar tarea ───────────────────────────────────── */
     function completar(check) {
         var item = check.closest('.tarea-item');
         var id   = item.getAttribute('data-id');
@@ -491,7 +394,6 @@ var tareas = (function() {
         });
     }
 
-    /* ── eliminar tarea ────────────────────────────────────── */
     function eliminar(id) {
         if (!confirm('¿Eliminar esta tarea?')) return;
         post({ accion: 'eliminar', id: id }, function(error, data) {
@@ -500,7 +402,6 @@ var tareas = (function() {
         });
     }
 
-    /* ── filtros ───────────────────────────────────────────── */
     function toggleFiltros() {
         var el = document.getElementById('tareas-filtros');
         el.style.display = el.style.display === 'flex' ? 'none' : 'flex';
@@ -522,36 +423,10 @@ var tareas = (function() {
         document.querySelectorAll('.tarea-item').forEach(function(i) { i.style.display = ''; });
     }
 
-    /* ── exportar CSV ──────────────────────────────────────── */
-    function exportar() {
-        var filas = [['Título','Prioridad','Categoría','Fecha','Estado']];
-        document.querySelectorAll('.tarea-item').forEach(function(item) {
-            var titulo = item.querySelector('h3').textContent.trim();
-            var prio   = item.getAttribute('data-prio');
-            var estado = item.getAttribute('data-estado');
-            var fecha  = (item.querySelector('.tarea-info p') || {}).textContent || '';
-            filas.push([titulo, prio, '', fecha.trim(), estado]);
-        });
-        var csv = filas.map(function(fila) {
-            return fila.map(function(c) {
-                return '"' + String(c).replace(/"/g, '""') + '"';
-            }).join(',');
-        }).join('\n');
-        var blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
-        var a = document.createElement('a');
-        a.href = URL.createObjectURL(blob);
-        a.download = 'tareas_' + new Date().toISOString().slice(0, 10) + '.csv';
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-    }
-
-    /* ── cerrar modal con Escape ───────────────────────────── */
     document.addEventListener('keydown', function(e) {
         if (e.key === 'Escape') cerrarModal();
     });
 
-    /* ── API pública ───────────────────────────────────────── */
     return {
         abrirModal:    abrirModal,
         cerrarModal:   cerrarModal,
@@ -560,8 +435,7 @@ var tareas = (function() {
         eliminar:      eliminar,
         toggleFiltros: toggleFiltros,
         aplicarFiltro: aplicarFiltro,
-        limpiarFiltro: limpiarFiltro,
-        exportar:      exportar
+        limpiarFiltro: limpiarFiltro
     };
 })();
 </script>

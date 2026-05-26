@@ -7,12 +7,22 @@ function cargarSeccion(seccion, elemento) {
     fetch('secciones/' + seccion + '.php')
         .then(function(response) { return response.text(); })
         .then(function(html) {
-            document.getElementById('main-content').innerHTML = html;
+            var mc = document.getElementById('main-content');
+            mc.innerHTML = html;
+
+            // ── Re-ejecutar scripts del fragmento cargado ──
+            mc.querySelectorAll('script').forEach(function(viejo) {
+                var nuevo = document.createElement('script');
+                nuevo.textContent = viejo.textContent;
+                document.body.appendChild(nuevo);
+                document.body.removeChild(nuevo);
+            });
+
             if (seccion === 'dashboard') {
                 setTimeout(iniciarGrafica, 300);
             }
         })
-        .catch(function(error) {
+        .catch(function() {
             document.getElementById('main-content').innerHTML = '<div style="padding:2rem">Error cargando la seccion.</div>';
         });
 }
@@ -175,7 +185,14 @@ function cambiarFecha(dias) {
     fetch('secciones/agenda.php?fecha=' + fechaActual)
         .then(r => r.text())
         .then(html => {
-            document.getElementById('main-content').innerHTML = html;
+            var mc = document.getElementById('main-content');
+            mc.innerHTML = html;
+            mc.querySelectorAll('script').forEach(function(viejo) {
+                var nuevo = document.createElement('script');
+                nuevo.textContent = viejo.textContent;
+                document.body.appendChild(nuevo);
+                document.body.removeChild(nuevo);
+            });
         });
 }
 
