@@ -21,6 +21,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['accion'])) {
 
         $sql  = "INSERT INTO productos (id_usuario, nombre, precio, fecha_caducidad, stock, categoria) VALUES (?, ?, ?, ?, ?, ?)";
         $stmt = mysqli_prepare($con, $sql);
+        // i=id_usuario s=nombre d=precio s=fecha_caducidad i=stock s=categoria
         mysqli_stmt_bind_param($stmt, 'issdis', $id_usuario, $nombre, $precio, $fecha, $stock, $categoria);
 
         if (mysqli_stmt_execute($stmt)) {
@@ -222,6 +223,10 @@ function estado_fecha(string $f): array {
 <!-- MODAL — se agrega al body para que position:fixed funcione bien -->
 <script>
 (function(){
+    // Eliminar modal anterior si existe (evita IDs duplicados)
+    var viejo = document.getElementById('prod-modal');
+    if (viejo) viejo.remove();
+
     var html = `
     <div id="prod-modal" style="display:none;position:fixed;inset:0;background:rgba(14,14,20,.5);z-index:9999;align-items:center;justify-content:center;backdrop-filter:blur(4px);">
         <div style="background:var(--card);border:2px solid var(--black);border-radius:22px;box-shadow:8px 8px 0 var(--black);width:480px;max-width:95vw;overflow:hidden;">
