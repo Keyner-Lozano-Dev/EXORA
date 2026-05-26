@@ -253,7 +253,7 @@ $con = connection();
                         <i class="fa-solid fa-list-check"></i> Tareas
                     </a>
                     <a href="#" onclick="cargarSeccion('recordatorios', this); return false;">
-                        <i class="fa-solid fa-bell"></i> Recordatorios
+                        <i class="fa-solid fa-bell"></i> Productos
                     </a>
                 </div>
             </div>
