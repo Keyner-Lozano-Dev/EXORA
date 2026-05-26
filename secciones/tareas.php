@@ -1,261 +1,197 @@
 <?php
-// ══════════════════════════════════════════════════════════════
-//  TAREAS.PHP  –  /secciones/tareas.php
-//  Compatible con connection.php procedimental (mysqli_*)
-// ══════════════════════════════════════════════════════════════
-
 if (session_status() === PHP_SESSION_NONE) session_start();
 include_once __DIR__ . '/../connection.php';
 $con = connection();
+$id_usuario = $_SESSION['user_id'] ?? 0;
 
-$id_usuario = $_SESSION['user_id'] ?? 1;
-
-// ── AJAX: recibe POST ─────────────────────────────────────────
+// ── AJAX ──────────────────────────────────────────────────────
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['accion'])) {
     header('Content-Type: application/json; charset=utf-8');
     $accion = $_POST['accion'];
 
-    // Crear tarea
     if ($accion === 'crear') {
-        $titulo       = trim($_POST['titulo']      ?? '');
-        $descripcion  = trim($_POST['descripcion'] ?? '');
-        $prioridad    = $_POST['prioridad']         ?? 'media';
-        $categoria    = trim($_POST['categoria']   ?? '');
-        $fecha_limite = $_POST['fecha_limite']      ?? '';
-        $hora         = !empty($_POST['hora']) ? $_POST['hora'] : null;
-
-        if (!$titulo || !$fecha_limite) {
-            echo json_encode(['ok' => false, 'msg' => 'Título y fecha son obligatorios']);
-            exit;
-        }
-
-        $sql  = "INSERT INTO tareas (id_usuario,titulo,descripcion,prioridad,categoria,fecha_limite,hora,completada,fecha_creacion) VALUES (?,?,?,?,?,?,?,0,NOW())";
-        $stmt = mysqli_prepare($con, $sql);
-        mysqli_stmt_bind_param($stmt, 'issssss', $id_usuario, $titulo, $descripcion, $prioridad, $categoria, $fecha_limite, $hora);
-
-        if (mysqli_stmt_execute($stmt)) {
-            echo json_encode(['ok' => true, 'id' => mysqli_stmt_insert_id($stmt)]);
-        } else {
-            echo json_encode(['ok' => false, 'msg' => mysqli_stmt_error($stmt)]);
-        }
+        $titulo      = trim($_POST['titulo'] ?? '');
+        $desc        = trim($_POST['descripcion'] ?? '');
+        $prioridad   = $_POST['prioridad'] ?? 'media';
+        $categoria   = trim($_POST['categoria'] ?? '');
+        $fecha       = $_POST['fecha_limite'] ?? '';
+        $hora        = !empty($_POST['hora']) ? $_POST['hora'] : null;
+        if (!$titulo || !$fecha) { echo json_encode(['ok'=>false,'msg'=>'Título y fecha son obligatorios']); exit; }
+        $stmt = mysqli_prepare($con, "INSERT INTO tareas (id_usuario,titulo,descripcion,prioridad,categoria,fecha_limite,hora,completada,fecha_creacion) VALUES (?,?,?,?,?,?,?,0,NOW())");
+        mysqli_stmt_bind_param($stmt,'issssss',$id_usuario,$titulo,$desc,$prioridad,$categoria,$fecha,$hora);
+        $ok = mysqli_stmt_execute($stmt);
+        echo json_encode(['ok'=>$ok,'id'=>mysqli_insert_id($con),'msg'=>mysqli_stmt_error($stmt)]);
         mysqli_stmt_close($stmt);
         exit;
     }
 
-    // Completar tarea
     if ($accion === 'completar') {
-        $id = intval($_POST['id'] ?? 0);
+        $id = (int)($_POST['id'] ?? 0);
         $stmt = mysqli_prepare($con, "UPDATE tareas SET completada=1 WHERE id=? AND id_usuario=?");
-        mysqli_stmt_bind_param($stmt, 'ii', $id, $id_usuario);
-        echo json_encode(['ok' => mysqli_stmt_execute($stmt)]);
+        mysqli_stmt_bind_param($stmt,'ii',$id,$id_usuario);
+        echo json_encode(['ok'=>mysqli_stmt_execute($stmt)]);
         mysqli_stmt_close($stmt);
         exit;
     }
 
-    // Exportar CSV
-    if ($accion === 'exportar') {
-        $stmt = mysqli_prepare($con, "SELECT titulo,descripcion,prioridad,categoria,fecha_limite,hora,completada FROM tareas WHERE id_usuario=? ORDER BY fecha_limite ASC");
-        mysqli_stmt_bind_param($stmt, 'i', $id_usuario);
-        mysqli_stmt_execute($stmt);
-        $res  = mysqli_stmt_get_result($stmt);
-        $rows = [['Título','Descripción','Prioridad','Categoría','Fecha límite','Hora','Completada']];
-        while ($r = mysqli_fetch_assoc($res)) {
-            $rows[] = [$r['titulo'], $r['descripcion'] ?? '', $r['prioridad'], $r['categoria'] ?? '', $r['fecha_limite'] ?? '', $r['hora'] ?? '', $r['completada'] ? 'Sí' : 'No'];
-        }
+    if ($accion === 'eliminar') {
+        $id = (int)($_POST['id'] ?? 0);
+        $stmt = mysqli_prepare($con, "DELETE FROM tareas WHERE id=? AND id_usuario=?");
+        mysqli_stmt_bind_param($stmt,'ii',$id,$id_usuario);
+        echo json_encode(['ok'=>mysqli_stmt_execute($stmt)]);
         mysqli_stmt_close($stmt);
-        echo json_encode(['ok' => true, 'filas' => $rows]);
         exit;
     }
 
-    echo json_encode(['ok' => false, 'msg' => 'Acción desconocida']);
+    echo json_encode(['ok'=>false,'msg'=>'Acción desconocida']);
     exit;
 }
 
-// ── GET: cargar tareas ────────────────────────────────────────
-$tareas = [];
-$stmt   = mysqli_prepare($con, "SELECT * FROM tareas WHERE id_usuario=? ORDER BY fecha_limite ASC, hora ASC");
-mysqli_stmt_bind_param($stmt, 'i', $id_usuario);
+// ── GET: cargar datos ─────────────────────────────────────────
+$stmt = mysqli_prepare($con, "SELECT * FROM tareas WHERE id_usuario=? ORDER BY fecha_limite ASC, hora ASC");
+mysqli_stmt_bind_param($stmt,'i',$id_usuario);
 mysqli_stmt_execute($stmt);
 $res = mysqli_stmt_get_result($stmt);
+$tareas = [];
 while ($r = mysqli_fetch_assoc($res)) $tareas[] = $r;
 mysqli_stmt_close($stmt);
 
 $pendientes  = array_values(array_filter($tareas, fn($t) => $t['completada'] == 0));
 $completadas = array_values(array_filter($tareas, fn($t) => $t['completada'] == 1));
 $total       = count($tareas);
-$progreso    = $total > 0 ? round(count($completadas) * 100 / $total) : 0;
+$progreso    = $total > 0 ? round(count($completadas)*100/$total) : 0;
+$alta        = count(array_filter($pendientes, fn($t) => strtolower($t['prioridad'])==='alta'));
 
 $categorias = [];
 foreach ($tareas as $t) {
-    $c = $t['categoria'] ?: 'Sin categoría';
+    $c = trim($t['categoria']) ?: 'Sin categoría';
     $categorias[$c] = ($categorias[$c] ?? 0) + 1;
 }
 
-function badge($p) {
-    return match(strtolower((string)$p)) { 'alta'=>['alta','Alta'], 'media'=>['media','Media'], default=>['baja','Baja'] };
-}
-function fecha_fmt($f, $h) {
+function fmt_fecha($f, $h) {
     if (!$f) return 'Sin fecha';
-    $dt = new DateTime($f.' '.($h?:'00:00:00'));
-    $hoy = new DateTime('today'); $man = new DateTime('tomorrow');
-    if ($dt->format('Y-m-d')===$hoy->format('Y-m-d')) return 'Hoy · '.$dt->format('h:i A');
-    if ($dt->format('Y-m-d')===$man->format('Y-m-d')) return 'Mañana';
-    return $dt->format('d M Y');
+    $hoy = date('Y-m-d');
+    $man = date('Y-m-d', strtotime('+1 day'));
+    if ($f === $hoy) return 'Hoy' . ($h ? ' · ' . substr($h,0,5) : '');
+    if ($f === $man) return 'Mañana' . ($h ? ' · ' . substr($h,0,5) : '');
+    return date('d M Y', strtotime($f)) . ($h ? ' · ' . substr($h,0,5) : '');
 }
+$colores_cat = ['#e04e1a','#7b2cbf','#f5e100','#0e0e14','#0ea5e9','#16a34a'];
 ?>
-<!-- ════════════════════════════════════════════════════════════
-     HTML
-════════════════════════════════════════════════════════════ -->
 
 <!-- TOPBAR -->
 <div class="topbar">
-    <div class="topbar-top"><div class="welcome"><h1>Tareas</h1></div></div>
+    <div class="topbar-top">
+        <div class="welcome"><h1>Tareas</h1></div>
+        <?php if (!empty($_SESSION['foto'])): ?>
+            <a href="secciones/perfil.php" class="profile" style="text-decoration:none;padding:0;overflow:hidden;">
+                <img src="<?= $_SESSION['foto'] ?>" style="width:48px;height:48px;border-radius:50%;object-fit:cover;display:block;border:2px solid #0e0e14;box-shadow:3px 3px 0 #0e0e14;">
+            </a>
+        <?php else: ?>
+            <a href="secciones/perfil.php" class="profile" style="text-decoration:none;">
+                <?= strtoupper(substr($_SESSION['username'] ?? 'U', 0, 1)) ?>
+            </a>
+        <?php endif; ?>
+    </div>
     <div class="toolbar">
         <span class="toolbar-label">Acciones</span>
         <div class="tb-divider"></div>
-        <button class="tool-btn purple" onclick="tareas_abrirForm()">+ Nueva tarea</button>
-        <button class="tool-btn orange" onclick="tareas_toggleFiltros()">Filtrar</button>
+        <button class="tool-btn purple" onclick="t_abrirModal()">
+            <i class="fa-solid fa-plus"></i> Nueva tarea
+        </button>
+        <button class="tool-btn orange" onclick="t_toggleFiltros()">
+            <i class="fa-solid fa-filter"></i> Filtrar
+        </button>
         <div class="spacer"></div>
-        <!-- Campanita -->
-        <div style="position:relative;display:inline-block;">
-            <button class="tool-btn" id="tareas_btnBell" onclick="tareas_toggleBell(event)"
-                style="background:#f0f0f0;border:1px solid #ddd;border-radius:8px;padding:7px 12px;cursor:pointer;display:flex;align-items:center;gap:4px;">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
-                    <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
-                </svg>
-            </button>
-            <div id="tareas_bellPanel" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:280px;background:white;border:1px solid #e0e0e0;border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.12);z-index:9999;">
-                <div style="padding:12px 16px;border-bottom:1px solid #eee;font-weight:600;font-size:14px;">Notificaciones</div>
-                <div style="padding:14px 16px;font-size:13px;color:#666;">
-                    <?php if (empty($pendientes)): ?>
-                        ✓ No hay tareas pendientes
-                    <?php else: ?>
-                        Tienes <strong><?= count($pendientes) ?></strong> tarea<?= count($pendientes)!==1?'s':'' ?> pendiente<?= count($pendientes)!==1?'s':'' ?>.
-                        <?php $hoy_str = date('Y-m-d'); $hoy_count = count(array_filter($pendientes, fn($t)=>$t['fecha_limite']===$hoy_str)); ?>
-                        <?php if ($hoy_count > 0): ?><br><span style="color:#e04e1a;font-weight:600;">⚠ <?= $hoy_count ?> vencen hoy</span><?php endif; ?>
-                    <?php endif; ?>
-                </div>
-                <div style="padding:10px 16px;border-top:1px solid #eee;">
-                    <button onclick="tareas_activarNotif()" style="width:100%;padding:8px;background:#7b2cbf;color:white;border:none;border-radius:6px;cursor:pointer;font-size:13px;">
-                        🔔 Activar notificaciones del navegador
-                    </button>
-                </div>
-            </div>
-        </div>
-        <button class="tool-btn dark" onclick="tareas_exportar()">Exportar CSV</button>
+        <button class="tool-btn dark" onclick="t_exportar()">
+            <i class="fa-solid fa-download"></i> Exportar CSV
+        </button>
     </div>
 </div>
 
-<!-- FILTROS -->
-<div id="tareas_filtros" style="display:none;background:#f5f5f5;border:1px solid #ddd;border-radius:8px;padding:16px;margin:12px 0;gap:12px;flex-wrap:wrap;align-items:flex-end;">
-    <div>
-        <label style="font-size:13px;color:#555;">Prioridad</label><br>
-        <select id="tareas_fPrio" style="padding:6px 10px;border-radius:6px;border:1px solid #ccc;margin-top:4px;">
-            <option value="">Todas</option><option value="alta">Alta</option><option value="media">Media</option><option value="baja">Baja</option>
-        </select>
-    </div>
-    <div>
-        <label style="font-size:13px;color:#555;">Estado</label><br>
-        <select id="tareas_fEst" style="padding:6px 10px;border-radius:6px;border:1px solid #ccc;margin-top:4px;">
-            <option value="">Todos</option><option value="pendiente">Pendientes</option><option value="completada">Completadas</option>
-        </select>
-    </div>
-    <button onclick="tareas_aplicarFiltro()" style="background:#7b2cbf;color:white;border:none;padding:8px 16px;border-radius:6px;cursor:pointer;margin-top:20px;">Aplicar</button>
-    <button onclick="tareas_limpiarFiltro()" style="background:#ccc;color:#333;border:none;padding:8px 16px;border-radius:6px;cursor:pointer;margin-top:20px;">Limpiar</button>
-</div>
-
-<!-- FORMULARIO NUEVA TAREA -->
-<div id="tareas_form" style="display:none;border:1px solid #ccc;padding:20px;margin:16px 0;background:#f9f9f9;border-radius:8px;">
-    <h3 style="margin-top:0;">Nueva Tarea</h3>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
-        <label style="grid-column:1/-1;font-size:13px;">Título *<br>
-            <input id="tareas_titulo" type="text" placeholder="Nombre de la tarea"
-                   style="width:100%;padding:9px;margin-top:4px;border:1px solid #ccc;border-radius:6px;box-sizing:border-box;font-size:14px;">
-        </label>
-        <label style="font-size:13px;">Prioridad<br>
-            <select id="tareas_prioridad" style="width:100%;padding:9px;margin-top:4px;border:1px solid #ccc;border-radius:6px;box-sizing:border-box;font-size:14px;">
+<!-- FILTROS (ocultos por defecto) -->
+<div id="t_filtros" style="display:none;" class="tareas-box" style="padding:16px;">
+    <div style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;">
+        <div>
+            <label style="font-size:12px;font-weight:700;color:var(--black);text-transform:uppercase;letter-spacing:.5px;">Prioridad</label><br>
+            <select id="t_fPrio" style="margin-top:6px;padding:9px 12px;border:2px solid var(--black);border-radius:10px;background:var(--bg);font-family:var(--font);font-size:14px;outline:none;">
+                <option value="">Todas</option>
                 <option value="alta">Alta</option>
-                <option value="media" selected>Media</option>
+                <option value="media">Media</option>
                 <option value="baja">Baja</option>
             </select>
-        </label>
-        <label style="font-size:13px;">Categoría<br>
-            <input id="tareas_categoria" type="text" placeholder="Ej: Ventas"
-                   style="width:100%;padding:9px;margin-top:4px;border:1px solid #ccc;border-radius:6px;box-sizing:border-box;font-size:14px;">
-        </label>
-        <label style="font-size:13px;">Fecha límite *<br>
-            <input id="tareas_fecha" type="date"
-                   style="width:100%;padding:9px;margin-top:4px;border:1px solid #ccc;border-radius:6px;box-sizing:border-box;font-size:14px;">
-        </label>
-        <label style="font-size:13px;">Hora<br>
-            <input id="tareas_hora" type="time"
-                   style="width:100%;padding:9px;margin-top:4px;border:1px solid #ccc;border-radius:6px;box-sizing:border-box;font-size:14px;">
-        </label>
-        <label style="grid-column:1/-1;font-size:13px;">Descripción<br>
-            <textarea id="tareas_desc" rows="3" placeholder="Descripción opcional..."
-                      style="width:100%;padding:9px;margin-top:4px;border:1px solid #ccc;border-radius:6px;box-sizing:border-box;font-size:14px;resize:vertical;"></textarea>
-        </label>
+        </div>
+        <div>
+            <label style="font-size:12px;font-weight:700;color:var(--black);text-transform:uppercase;letter-spacing:.5px;">Estado</label><br>
+            <select id="t_fEst" style="margin-top:6px;padding:9px 12px;border:2px solid var(--black);border-radius:10px;background:var(--bg);font-family:var(--font);font-size:14px;outline:none;">
+                <option value="">Todos</option>
+                <option value="pendiente">Pendientes</option>
+                <option value="completada">Completadas</option>
+            </select>
+        </div>
+        <button class="tool-btn purple" onclick="t_aplicarFiltro()" style="margin-bottom:0;">Aplicar</button>
+        <button class="tool-btn" onclick="t_limpiarFiltro()" style="margin-bottom:0;">Limpiar</button>
     </div>
-    <div style="margin-top:14px;display:flex;gap:10px;">
-        <button id="tareas_btnGuardar" onclick="tareas_guardar()"
-                style="background:#7b2cbf;color:white;padding:10px 22px;border:none;border-radius:6px;cursor:pointer;font-size:14px;">
-            ✓ Crear tarea
-        </button>
-        <button onclick="tareas_cerrarForm()"
-                style="background:#e0e0e0;color:#333;padding:10px 22px;border:none;border-radius:6px;cursor:pointer;font-size:14px;">
-            ✕ Cancelar
-        </button>
-    </div>
-    <p id="tareas_formMsg" style="margin:10px 0 0;font-size:13px;color:#e04e1a;display:none;"></p>
 </div>
 
 <!-- LAYOUT -->
 <div class="tareas-layout">
 
-    <!-- Columna izquierda -->
+    <!-- COLUMNA IZQUIERDA -->
     <div class="tareas-col">
 
-        <!-- Pendientes -->
+        <!-- PENDIENTES -->
         <div class="tareas-box">
             <div class="tareas-box-title">
                 Pendientes
-                <button class="tareas-add-btn" onclick="tareas_abrirForm()">+ Agregar</button>
+                <span style="font-size:13px;font-weight:500;color:var(--muted);">(<?= count($pendientes) ?>)</span>
+                <button class="tareas-add-btn" onclick="t_abrirModal()">
+                    <i class="fa-solid fa-plus"></i> Agregar
+                </button>
             </div>
-            <div id="tareas_listaPend">
+            <div id="t_listaPend">
             <?php if (empty($pendientes)): ?>
-                <p style="padding:20px;color:#888;font-size:14px;">No hay tareas pendientes. ¡Agrega una!</p>
-            <?php else: foreach ($pendientes as $t):
-                [$cls,$txt] = badge($t['prioridad']); $fmtf = fecha_fmt($t['fecha_limite'],$t['hora']); ?>
+                <p style="padding:20px 0;color:var(--muted);font-size:14px;">No hay tareas pendientes. ¡Agrega una!</p>
+            <?php else: foreach ($pendientes as $t): ?>
                 <div class="tarea-item" data-id="<?= $t['id'] ?>" data-prio="<?= strtolower($t['prioridad']) ?>" data-estado="pendiente">
-                    <div class="tarea-check" onclick="tareas_completar(this)" title="Marcar completada"></div>
+                    <div class="tarea-check" onclick="t_completar(this)" title="Marcar completada"></div>
                     <div class="tarea-info">
                         <h3><?= htmlspecialchars($t['titulo']) ?></h3>
-                        <?php if ($t['descripcion']): ?><p style="font-size:13px;color:#666;margin:2px 0;"><?= nl2br(htmlspecialchars($t['descripcion'])) ?></p><?php endif; ?>
-                        <p style="font-size:12px;color:#888;margin:4px 0;"><i class="fa-solid fa-calendar"></i> <?= $fmtf ?><?php if ($t['categoria']): ?> · <span style="color:#7b2cbf;"><?= htmlspecialchars($t['categoria']) ?></span><?php endif; ?></p>
+                        <?php if ($t['descripcion']): ?>
+                            <p style="font-size:12px;color:var(--muted);margin:2px 0;"><?= htmlspecialchars($t['descripcion']) ?></p>
+                        <?php endif; ?>
+                        <p><i class="fa-solid fa-calendar"></i> <?= fmt_fecha($t['fecha_limite'], $t['hora']) ?>
+                        <?php if ($t['categoria']): ?> &nbsp;·&nbsp; <i class="fa-solid fa-tag"></i> <?= htmlspecialchars($t['categoria']) ?><?php endif; ?></p>
                     </div>
-                    <span class="tarea-badge <?= $cls ?>"><?= $txt ?></span>
+                    <span class="tarea-badge <?= strtolower($t['prioridad']) ?>"><?= ucfirst($t['prioridad']) ?></span>
+                    <button class="t-btn-del" onclick="t_eliminar(<?= $t['id'] ?>)" title="Eliminar">
+                        <i class="fa-solid fa-trash"></i>
+                    </button>
                 </div>
             <?php endforeach; endif; ?>
             </div>
         </div>
 
-        <!-- Completadas -->
+        <!-- COMPLETADAS -->
         <div class="tareas-box">
-            <div class="tareas-box-title">Completadas</div>
-            <div id="tareas_listaComp">
+            <div class="tareas-box-title">
+                Completadas
+                <span style="font-size:13px;font-weight:500;color:var(--muted);">(<?= count($completadas) ?>)</span>
+            </div>
+            <div id="t_listaComp">
             <?php if (empty($completadas)): ?>
-                <p style="padding:20px;color:#888;font-size:14px;">No hay tareas completadas aún.</p>
-            <?php else: foreach ($completadas as $t):
-                [$cls,$txt] = badge($t['prioridad']); $fmtf = fecha_fmt($t['fecha_limite'],$t['hora']); ?>
+                <p style="padding:20px 0;color:var(--muted);font-size:14px;">No hay tareas completadas aún.</p>
+            <?php else: foreach ($completadas as $t): ?>
                 <div class="tarea-item" data-id="<?= $t['id'] ?>" data-prio="<?= strtolower($t['prioridad']) ?>" data-estado="completada">
                     <div class="tarea-check done"><i class="fa-solid fa-check"></i></div>
                     <div class="tarea-info">
                         <h3 class="tachado"><?= htmlspecialchars($t['titulo']) ?></h3>
-                        <?php if ($t['descripcion']): ?><p style="font-size:13px;color:#aaa;margin:2px 0;"><?= nl2br(htmlspecialchars($t['descripcion'])) ?></p><?php endif; ?>
-                        <p style="font-size:12px;color:#aaa;margin:4px 0;">Completada · <?= $fmtf ?></p>
+                        <p>Completada · <?= fmt_fecha($t['fecha_limite'], $t['hora']) ?></p>
                     </div>
-                    <span class="tarea-badge <?= $cls ?>"><?= $txt ?></span>
+                    <span class="tarea-badge <?= strtolower($t['prioridad']) ?>"><?= ucfirst($t['prioridad']) ?></span>
+                    <button class="t-btn-del" onclick="t_eliminar(<?= $t['id'] ?>)" title="Eliminar">
+                        <i class="fa-solid fa-trash"></i>
+                    </button>
                 </div>
             <?php endforeach; endif; ?>
             </div>
@@ -263,200 +199,262 @@ function fecha_fmt($f, $h) {
 
     </div>
 
-    <!-- Columna derecha -->
+    <!-- COLUMNA DERECHA -->
     <div class="tareas-col">
 
-        <!-- Resumen -->
+        <!-- RESUMEN -->
         <div class="tareas-box">
             <div class="tareas-box-title">Resumen</div>
             <div class="tareas-stat-grid">
                 <div class="tareas-stat"><h2><?= $total ?></h2><p>Total tareas</p></div>
                 <div class="tareas-stat"><h2><?= count($completadas) ?></h2><p>Completadas</p></div>
-                <div class="tareas-stat"><h2><?= count(array_filter($pendientes, fn($t)=>strtolower($t['prioridad'])==='alta')) ?></h2><p>Alta prioridad</p></div>
+                <div class="tareas-stat"><h2><?= $alta ?></h2><p>Alta prioridad</p></div>
                 <div class="tareas-stat"><h2><?= $progreso ?>%</h2><p>Progreso</p></div>
             </div>
-            <div class="tareas-prog-bar"><div class="tareas-prog-fill" style="width:<?= $progreso ?>%;"></div></div>
+            <div class="tareas-prog-bar">
+                <div class="tareas-prog-fill" style="width:<?= $progreso ?>%;"></div>
+            </div>
         </div>
 
-        <!-- Categorías -->
+        <!-- CATEGORÍAS -->
         <div class="tareas-box">
             <div class="tareas-box-title">Por categoría</div>
             <?php if (empty($categorias)): ?>
-                <p style="padding:16px;color:#888;font-size:14px;">Sin categorías aún.</p>
-            <?php else:
-                $cols=['Ventas'=>'#e04e1a','Inventario'=>'#7b2cbf','Proveedores'=>'#f5e100','Precios'=>'#0e0e14','Sin categoría'=>'#999'];
-                foreach ($categorias as $cat=>$cant): $c=$cols[$cat]??'#7b2cbf'; ?>
+                <p style="color:var(--muted);font-size:13px;padding:12px 0;">Sin categorías aún.</p>
+            <?php else: $i=0; foreach ($categorias as $cat => $cant): ?>
                 <div class="tareas-cat-item">
-                    <div class="tareas-cat-dot" style="background:<?= $c ?>;"></div>
+                    <div class="tareas-cat-dot" style="background:<?= $colores_cat[$i % count($colores_cat)] ?>;"></div>
                     <span><?= htmlspecialchars($cat) ?></span>
-                    <small><?= $cant ?> tarea<?= $cant!==1?'s':'' ?></small>
+                    <small><?= $cant ?> tarea<?= $cant!=1?'s':'' ?></small>
                 </div>
-            <?php endforeach; endif; ?>
+            <?php $i++; endforeach; endif; ?>
         </div>
 
     </div>
 </div>
 
-<!-- ESTILOS -->
+<!-- MODAL NUEVA TAREA -->
+<div class="modal-overlay" id="t_modal" style="display:none;">
+    <div class="modal-box">
+        <div class="modal-header">
+            <h2>Nueva Tarea</h2>
+            <button class="modal-close" onclick="t_cerrarModal()"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="modal-body">
+            <div class="campo">
+                <label>Título *</label>
+                <input type="text" id="t_titulo" placeholder="Nombre de la tarea">
+            </div>
+            <div class="campo">
+                <label>Descripción</label>
+                <textarea id="t_desc" placeholder="Descripción opcional..."></textarea>
+            </div>
+            <div class="campo-row">
+                <div class="campo">
+                    <label>Prioridad</label>
+                    <select id="t_prioridad">
+                        <option value="alta">Alta</option>
+                        <option value="media" selected>Media</option>
+                        <option value="baja">Baja</option>
+                    </select>
+                </div>
+                <div class="campo">
+                    <label>Categoría</label>
+                    <input type="text" id="t_categoria" placeholder="Ej: Ventas">
+                </div>
+            </div>
+            <div class="campo-row">
+                <div class="campo">
+                    <label>Fecha límite *</label>
+                    <input type="date" id="t_fecha">
+                </div>
+                <div class="campo">
+                    <label>Hora</label>
+                    <input type="time" id="t_hora">
+                </div>
+            </div>
+            <p id="t_modalMsg" style="color:#e04e1a;font-size:13px;display:none;margin:0;"></p>
+        </div>
+        <div class="modal-footer">
+            <button class="btn-cancelar" onclick="t_cerrarModal()">Cancelar</button>
+            <button class="btn-guardar" id="t_btnGuardar" onclick="t_guardar()">
+                <i class="fa-solid fa-check"></i> Guardar
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- ESTILOS LOCALES -->
 <style>
-.tarea-check{width:24px;height:24px;min-width:24px;border:2px solid #0e0e14;border-radius:4px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .2s;}
+.tarea-item{display:flex;align-items:center;gap:12px;padding:14px;border-radius:14px;border:2px solid var(--line);background:var(--bg);margin-bottom:10px;transition:border-color .2s;}
+.tarea-item:hover{border-color:var(--black);}
+.tarea-item:last-child{margin-bottom:0;}
+.tarea-check{width:22px;height:22px;min-width:22px;border:2px solid var(--black);border-radius:6px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .2s;}
 .tarea-check:hover:not(.done){border-color:#7b2cbf;background:#f3eeff;}
-.tarea-check.done{background:#7b2cbf;border-color:#7b2cbf;color:white;}
-.tarea-badge{font-size:12px;padding:3px 10px;border-radius:20px;white-space:nowrap;font-weight:500;}
-.tarea-badge.alta{background:#ffe0d6;color:#b33a1a;}
-.tarea-badge.media{background:#ede0ff;color:#5a1fa0;}
-.tarea-badge.baja{background:#fffbd6;color:#7a6a00;}
-.tachado{text-decoration:line-through;color:#aaa;}
+.tarea-check.done{background:#7b2cbf;border-color:#7b2cbf;color:#fff;font-size:11px;}
+.tarea-info{flex:1;min-width:0;}
+.tarea-info h3{font-size:13px;font-weight:700;color:var(--black);}
+.tarea-info p{font-size:11px;color:var(--muted);margin-top:3px;}
+.tarea-badge{padding:4px 10px;border-radius:20px;font-size:10px;font-weight:700;border:1.5px solid var(--black);flex-shrink:0;white-space:nowrap;}
+.tarea-badge.alta{background:#fee2e2;color:#991b1b;}
+.tarea-badge.media{background:#fef9c3;color:#854d0e;}
+.tarea-badge.baja{background:#dcfce7;color:#166534;}
+.tachado{text-decoration:line-through;color:var(--muted);}
+.t-btn-del{background:none;border:1.5px solid var(--line);color:var(--muted);border-radius:8px;padding:5px 8px;cursor:pointer;font-size:11px;flex-shrink:0;transition:all .15s;}
+.t-btn-del:hover{border-color:#e04e1a;color:#e04e1a;}
+/* Modal */
+.modal-overlay{position:fixed;inset:0;background:rgba(14,14,20,.5);z-index:999;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px);}
+.modal-box{background:var(--card);border:2px solid var(--black);border-radius:22px;box-shadow:8px 8px 0 var(--black);width:480px;max-width:95vw;overflow:hidden;}
+.modal-header{padding:20px 24px;border-bottom:2px solid var(--line);display:flex;justify-content:space-between;align-items:center;}
+.modal-header h2{font-size:18px;font-weight:800;color:var(--black);font-family:var(--font);}
+.modal-close{width:32px;height:32px;border-radius:8px;border:2px solid var(--black);background:var(--bg);cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;transition:all .15s;}
+.modal-close:hover{background:var(--black);color:var(--card);}
+.modal-body{padding:24px;display:flex;flex-direction:column;gap:16px;}
+.campo{display:flex;flex-direction:column;gap:6px;flex:1;}
+.campo label{font-size:12px;font-weight:700;color:var(--black);font-family:var(--font);text-transform:uppercase;letter-spacing:.5px;}
+.campo input,.campo textarea,.campo select{padding:10px 14px;border:2px solid var(--black);border-radius:10px;background:var(--bg);font-family:var(--font);font-size:14px;color:var(--black);outline:none;transition:box-shadow .15s;resize:none;}
+.campo textarea{height:72px;}
+.campo input:focus,.campo textarea:focus,.campo select:focus{box-shadow:3px 3px 0 var(--black);}
+.campo-row{display:flex;gap:12px;}
+.modal-footer{padding:16px 24px;border-top:2px solid var(--line);display:flex;justify-content:flex-end;gap:12px;}
+.btn-cancelar{padding:10px 20px;border:2px solid var(--black);border-radius:10px;background:var(--bg);font-family:var(--font);font-size:14px;font-weight:600;cursor:pointer;transition:all .15s;}
+.btn-cancelar:hover{background:var(--black);color:var(--card);}
+.btn-guardar{padding:10px 20px;border:2px solid var(--black);border-radius:10px;background:var(--black);color:var(--card);font-family:var(--font);font-size:14px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:8px;box-shadow:3px 3px 0 #7b2cbf;transition:all .15s;}
+.btn-guardar:hover{transform:translateY(-2px);box-shadow:5px 5px 0 #7b2cbf;}
 </style>
 
-<!-- JAVASCRIPT — todo en funciones con prefijo "tareas_" para evitar conflictos -->
+<!-- JS -->
 <script>
-(function() {
-    // ── Ruta fija al endpoint ─────────────────────────────────
-    var URL = '/secciones/tareas.php';
+(function(){
+    var ENDPOINT = 'secciones/tareas.php';
 
-    // ── Helpers ───────────────────────────────────────────────
-    function post(datos, callback) {
+    function post(datos, cb) {
         var fd = new FormData();
-        for (var k in datos) fd.append(k, datos[k]);
-        fetch(URL, { method: 'POST', body: fd })
+        Object.keys(datos).forEach(function(k){ fd.append(k, datos[k]); });
+        fetch(ENDPOINT, { method:'POST', body:fd })
             .then(function(r){ return r.text(); })
             .then(function(txt){
-                try { callback(null, JSON.parse(txt)); }
-                catch(e){ callback('Respuesta inválida del servidor: ' + txt.substring(0,200)); }
+                try { cb(null, JSON.parse(txt)); }
+                catch(e){ cb('Respuesta inválida: ' + txt.substring(0,100)); }
             })
-            .catch(function(e){ callback('Error de red: ' + e.message); });
+            .catch(function(e){ cb('Error red: ' + e.message); });
     }
 
-    // ── Formulario ────────────────────────────────────────────
-    window.tareas_abrirForm = function() {
-        document.getElementById('tareas_form').style.display = 'block';
-        document.getElementById('tareas_titulo').focus();
+    function recargar() {
+        fetch(ENDPOINT)
+            .then(function(r){ return r.text(); })
+            .then(function(html){
+                document.getElementById('main-content').innerHTML = html;
+            });
+    }
+
+    // Modal
+    window.t_abrirModal = function() {
+        document.getElementById('t_modal').style.display = 'flex';
+        document.getElementById('t_titulo').focus();
     };
-    window.tareas_cerrarForm = function() {
-        document.getElementById('tareas_form').style.display = 'none';
-        document.getElementById('tareas_formMsg').style.display = 'none';
-        ['tareas_titulo','tareas_desc','tareas_categoria','tareas_fecha','tareas_hora'].forEach(function(id){
+    window.t_cerrarModal = function() {
+        document.getElementById('t_modal').style.display = 'none';
+        ['t_titulo','t_desc','t_categoria','t_fecha','t_hora'].forEach(function(id){
             document.getElementById(id).value = '';
         });
-        document.getElementById('tareas_prioridad').value = 'media';
+        document.getElementById('t_prioridad').value = 'media';
+        document.getElementById('t_modalMsg').style.display = 'none';
     };
 
-    // ── Guardar tarea ─────────────────────────────────────────
-    window.tareas_guardar = function() {
-        var titulo = document.getElementById('tareas_titulo').value.trim();
-        var fecha  = document.getElementById('tareas_fecha').value;
-        var msg    = document.getElementById('tareas_formMsg');
-
+    // Guardar
+    window.t_guardar = function() {
+        var titulo = document.getElementById('t_titulo').value.trim();
+        var fecha  = document.getElementById('t_fecha').value;
+        var msg    = document.getElementById('t_modalMsg');
         if (!titulo) { msg.textContent='⚠ El título es obligatorio'; msg.style.display='block'; return; }
         if (!fecha)  { msg.textContent='⚠ La fecha límite es obligatoria'; msg.style.display='block'; return; }
-
-        var btn = document.getElementById('tareas_btnGuardar');
-        btn.disabled = true; btn.textContent = 'Guardando...';
+        var btn = document.getElementById('t_btnGuardar');
+        btn.disabled = true; btn.innerHTML = 'Guardando...';
         msg.style.display = 'none';
-
         post({
-            accion:       'crear',
-            titulo:       titulo,
-            descripcion:  document.getElementById('tareas_desc').value.trim(),
-            prioridad:    document.getElementById('tareas_prioridad').value,
-            categoria:    document.getElementById('tareas_categoria').value.trim(),
+            accion: 'crear',
+            titulo: titulo,
+            descripcion: document.getElementById('t_desc').value.trim(),
+            prioridad: document.getElementById('t_prioridad').value,
+            categoria: document.getElementById('t_categoria').value.trim(),
             fecha_limite: fecha,
-            hora:         document.getElementById('tareas_hora').value
+            hora: document.getElementById('t_hora').value
         }, function(err, data) {
-            btn.disabled = false; btn.textContent = '✓ Crear tarea';
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fa-solid fa-check"></i> Guardar';
             if (err) { msg.textContent = '✗ ' + err; msg.style.display='block'; return; }
-            if (data.ok) {
-                window.location.reload();
-            } else {
-                msg.textContent = '✗ ' + (data.msg || 'No se pudo crear');
-                msg.style.display = 'block';
-            }
+            if (data.ok) { t_cerrarModal(); recargar(); }
+            else { msg.textContent = '✗ ' + (data.msg || 'Error al guardar'); msg.style.display='block'; }
         });
     };
 
-    // ── Completar tarea ───────────────────────────────────────
-    window.tareas_completar = function(check) {
+    // Completar
+    window.t_completar = function(check) {
         var item = check.closest('.tarea-item');
         var id   = item.getAttribute('data-id');
         check.style.opacity = '0.4';
-        check.style.pointerEvents = 'none';
-
         post({ accion:'completar', id:id }, function(err, data) {
-            if (err || !data.ok) {
-                check.style.opacity = '1'; check.style.pointerEvents = 'auto';
-                alert('✗ No se pudo actualizar');
-                return;
-            }
+            if (err || !data.ok) { check.style.opacity='1'; alert('No se pudo completar'); return; }
             check.classList.add('done');
             check.innerHTML = '<i class="fa-solid fa-check"></i>';
             check.style.opacity = '1';
             item.querySelector('h3').classList.add('tachado');
-            setTimeout(function(){ window.location.reload(); }, 700);
+            setTimeout(recargar, 600);
         });
     };
 
-    // ── Exportar CSV ──────────────────────────────────────────
-    window.tareas_exportar = function() {
-        post({ accion:'exportar' }, function(err, data) {
-            if (err || !data.ok) { alert('✗ No se pudo exportar'); return; }
-            var csv = data.filas.map(function(fila){
-                return fila.map(function(c){ return '"'+String(c).replace(/"/g,'""')+'"'; }).join(',');
-            }).join('\n');
-            var blob = new Blob(['\uFEFF'+csv], {type:'text/csv;charset=utf-8;'});
-            var a = document.createElement('a');
-            a.href = URL.createObjectURL(blob);
-            a.download = 'tareas_'+new Date().toISOString().slice(0,10)+'.csv';
-            document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    // Eliminar
+    window.t_eliminar = function(id) {
+        if (!confirm('¿Eliminar esta tarea?')) return;
+        post({ accion:'eliminar', id:id }, function(err, data) {
+            if (err || !data.ok) { alert('No se pudo eliminar'); return; }
+            recargar();
         });
     };
 
-    // ── Filtros ───────────────────────────────────────────────
-    window.tareas_toggleFiltros = function() {
-        var el = document.getElementById('tareas_filtros');
+    // Filtros
+    window.t_toggleFiltros = function() {
+        var el = document.getElementById('t_filtros');
         el.style.display = el.style.display === 'flex' ? 'none' : 'flex';
     };
-    window.tareas_aplicarFiltro = function() {
-        var prio = document.getElementById('tareas_fPrio').value;
-        var est  = document.getElementById('tareas_fEst').value;
+    window.t_aplicarFiltro = function() {
+        var prio = document.getElementById('t_fPrio').value;
+        var est  = document.getElementById('t_fEst').value;
         document.querySelectorAll('.tarea-item').forEach(function(item){
             var okP = !prio || item.getAttribute('data-prio') === prio;
             var okE = !est  || item.getAttribute('data-estado') === est;
             item.style.display = (okP && okE) ? '' : 'none';
         });
     };
-    window.tareas_limpiarFiltro = function() {
-        document.getElementById('tareas_fPrio').value = '';
-        document.getElementById('tareas_fEst').value  = '';
+    window.t_limpiarFiltro = function() {
+        document.getElementById('t_fPrio').value = '';
+        document.getElementById('t_fEst').value  = '';
         document.querySelectorAll('.tarea-item').forEach(function(i){ i.style.display=''; });
     };
 
-    // ── Campanita ─────────────────────────────────────────────
-    window.tareas_toggleBell = function(e) {
-        e.stopPropagation();
-        var p = document.getElementById('tareas_bellPanel');
-        p.style.display = p.style.display === 'none' ? 'block' : 'none';
-    };
-    document.addEventListener('click', function(e) {
-        var p = document.getElementById('tareas_bellPanel');
-        if (p && !p.contains(e.target) && e.target.id !== 'tareas_btnBell') {
-            p.style.display = 'none';
-        }
-    });
-    window.tareas_activarNotif = function() {
-        if (!('Notification' in window)) { alert('Tu navegador no soporta notificaciones'); return; }
-        Notification.requestPermission().then(function(perm){
-            if (perm === 'granted') {
-                new Notification('EXORA · Tareas', {
-                    body: '✓ Notificaciones activadas correctamente',
-                    icon: '/favicon.png'
-                });
-                document.getElementById('tareas_bellPanel').style.display = 'none';
-            } else {
-                alert('Permiso denegado. Actívalo en la configuración del navegador.');
-            }
+    // Exportar CSV
+    window.t_exportar = function() {
+        var rows = [['Título','Descripción','Prioridad','Categoría','Estado']];
+        document.querySelectorAll('.tarea-item').forEach(function(item){
+            var titulo = item.querySelector('h3').textContent.trim();
+            var prio   = item.getAttribute('data-prio');
+            var estado = item.getAttribute('data-estado');
+            rows.push([titulo, '', prio, '', estado]);
         });
+        var csv = rows.map(function(r){
+            return r.map(function(c){ return '"'+String(c).replace(/"/g,'""')+'"'; }).join(',');
+        }).join('\n');
+        var blob = new Blob(['\uFEFF'+csv], {type:'text/csv;charset=utf-8;'});
+        var a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = 'tareas_'+new Date().toISOString().slice(0,10)+'.csv';
+        document.body.appendChild(a); a.click(); document.body.removeChild(a);
     };
 
-})(); // fin IIFE — evita contaminar el scope global
+    // Cerrar modal con Escape
+    document.addEventListener('keydown', function(e){
+        if (e.key === 'Escape') t_cerrarModal();
+    });
+})();
 </script>
