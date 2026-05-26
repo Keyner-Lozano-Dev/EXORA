@@ -42,6 +42,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['accion'])) {
         exit;
     }
 
+    if ($_POST['accion'] === 'reabrir') {
+        $id   = (int)($_POST['id'] ?? 0);
+        $stmt = mysqli_prepare($con, "UPDATE tareas SET completada=0 WHERE id=? AND id_usuario=?");
+        mysqli_stmt_bind_param($stmt, 'ii', $id, $id_usuario);
+        echo json_encode(['ok' => mysqli_stmt_execute($stmt)]);
+        mysqli_stmt_close($stmt);
+        exit;
+    }
+
     if ($_POST['accion'] === 'eliminar') {
         $id   = (int)($_POST['id'] ?? 0);
         $stmt = mysqli_prepare($con, "DELETE FROM tareas WHERE id=? AND id_usuario=?");
@@ -180,7 +189,7 @@ function fmt_fecha(string $f = null, string $h = null): string {
                 <p style="padding:16px 0;color:var(--muted);font-size:14px;">No hay tareas completadas aún.</p>
             <?php else: foreach ($completadas as $t): ?>
                 <div class="tarea-item" data-id="<?= $t['id'] ?>" data-prio="<?= strtolower($t['prioridad']) ?>" data-estado="completada">
-                    <div class="tarea-check done"><i class="fa-solid fa-check"></i></div>
+                    <div class="tarea-check done" onclick="tareas.reabrir(this)" title="Marcar como pendiente"><i class="fa-solid fa-check"></i></div>
                     <div class="tarea-info">
                         <h3 class="tachado"><?= htmlspecialchars($t['titulo']) ?></h3>
                         <p>Completada · <?= fmt_fecha($t['fecha_limite'], $t['hora']) ?></p>
@@ -394,6 +403,22 @@ var tareas = (function() {
         });
     }
 
+    function reabrir(check) {
+        var item = check.closest('.tarea-item');
+        var id   = item.getAttribute('data-id');
+        check.style.opacity = '0.4';
+        check.style.pointerEvents = 'none';
+        post({ accion: 'reabrir', id: id }, function(error, data) {
+            if (error || !data.ok) {
+                check.style.opacity = '1';
+                check.style.pointerEvents = 'auto';
+                alert('No se pudo reabrir la tarea');
+                return;
+            }
+            setTimeout(recargar, 300);
+        });
+    }
+
     function eliminar(id) {
         if (!confirm('¿Eliminar esta tarea?')) return;
         post({ accion: 'eliminar', id: id }, function(error, data) {
@@ -432,6 +457,7 @@ var tareas = (function() {
         cerrarModal:   cerrarModal,
         guardar:       guardar,
         completar:     completar,
+        reabrir:       reabrir,
         eliminar:      eliminar,
         toggleFiltros: toggleFiltros,
         aplicarFiltro: aplicarFiltro,
