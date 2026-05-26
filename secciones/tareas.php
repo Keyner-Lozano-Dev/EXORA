@@ -150,9 +150,6 @@ function fmt_fecha(string $f = null, string $h = null): string {
             <div class="tareas-box-title">
                 Pendientes
                 <span style="font-size:13px;font-weight:500;color:var(--muted);">(<?= count($pendientes) ?>)</span>
-                <button class="tareas-add-btn" onclick="tareas.abrirModal()">
-                    <i class="fa-solid fa-plus"></i> Agregar
-                </button>
             </div>
             <?php if (empty($pendientes)): ?>
                 <p style="padding:16px 0;color:var(--muted);font-size:14px;">No hay tareas pendientes. ¡Agrega una!</p>
